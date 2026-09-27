@@ -40,6 +40,14 @@ export function refString(node: unknown): string | undefined {
     return getString(asObject(node)?.$ref);
 }
 
+/** JSON text with object keys sorted, so equal values give equal text. */
+export function canonicalJson(value: unknown): string {
+    return JSON.stringify(value, (_key, inner: unknown) => {
+        const object = asObject(inner);
+        return object === undefined ? inner : Object.fromEntries(Object.keys(object).sort().map((key) => [key, object[key]]));
+    });
+}
+
 /** `decode(value)`, or `value` unchanged when it is not validly encoded. */
 export function tryDecode(decode: (value: string) => string, value: string): string {
     try {
