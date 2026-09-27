@@ -93,3 +93,19 @@ Reflection:
 - Next time, I test with a large real-world spec in the first model milestone. Full expansion is the core of the display, and its cost showed up late.
 - A PowerShell bulk replace corrupted three files. I restored them from git. From then on, I edited only with the Edit tool.
 - Decision: tweak, no re-implementation.
+
+## M7 Corpus
+
+Result: 183 end-to-end scenarios in eight areas, each with the expected class and a snapshot of the output. Four subagents wrote the fixtures. Two more subagents read all outputs as reviewers.
+
+What the corpus found:
+
+- The first run failed seven scenarios: version upgrades showed as changes, a header name that changed only in case showed as a rename, and an added OAuth flow counted as breaking.
+- The reviewers confirmed every exit code, and they found display problems: a false `explode` change (the model compared stored values, not effective ones), additions printed before removals, enum changes that repeated the whole list, and reasons that did not name the item or the direction.
+- The CLI and git tests used hand-written assertions. They now snapshot the whole run, as the user asked. The first snapshot run caught a wrong count in the summary.
+
+Reflection:
+
+- Snapshots of real scenarios found more display problems than the unit tests did. Next time, I start the corpus right after the first renderer, not after the git mode.
+- Subagents wrote fixtures fast, and their disagreement reports gave early signal. A rate limit stopped three of them partway, and their partial work was still usable because each scenario was self-contained.
+- Decision: tweak, no re-implementation.

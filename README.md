@@ -61,21 +61,28 @@ The tool pairs base and head documents by their path below the pattern folder. I
 ```text
 ~   GET /pets  listPets  [breaking]
       List pets
+      Security
+        api_key  apiKey in header "X-API-Key"
       Request
         Query parameters
 ~         limit  integer<int32>  <= 100
             How many pets to return
 ~           maximum: 500 → 100  [breaking: maximum decreased (client sends)]
+~         status  string
+            Allowed values: available, sold, pending
+~           enum: + pending
 +       Header parameters
-+         X-Request-Id  string<uuid>  required  [breaking: required header parameter added]
++         X-Request-Id  string<uuid>  required  [breaking: required header parameter added (client sends)]
       Responses
         200  A page of pets
           application/json  array[Pet]
             name  string  required  <= 50 characters
+            tag  string | null
 +           age  integer  >= 0
++             Age in years
 ```
 
-The first column marks each line: `+` added, `-` removed, `~` changed. A breaking change carries a `[breaking: reason]` tag, so the output keeps all information without colors.
+The first column marks each line: `+` added, `-` removed, `~` changed. A breaking change carries a `[breaking: reason]` tag, so the output keeps all information without colors. "Client sends" and "client receives" say which direction decided the class.
 
 ## What counts as breaking
 

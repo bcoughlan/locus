@@ -48,5 +48,6 @@ Key rules of the design:
 ## Tests
 
 - Unit tests sit next to the code (`src/**/*.test.ts`). `src/testing/build-yaml.ts` builds a model from inline YAML.
-- `test-e2e/corpus/` holds diff scenarios: `base/`, `head/`, `scenario.yml` (the expected class), and `output.txt` (the snapshot). See `test-e2e/corpus/README.md`.
+- End-to-end tests favor snapshots of the whole run. `transcript()` in `test-e2e/helpers.ts` turns a run into text (exit code, stdout, stderr) and replaces temporary paths with `<tmp>`. Use targeted assertions only for facts that a snapshot cannot show, such as color codes.
+- `test-e2e/corpus/` holds diff scenarios: `base/`, `head/`, `scenario.yml` (the expected class), and `output.txt` (the snapshot). See `test-e2e/corpus/README.md`. After an intended output change, update with `-u` and read the diff of each `output.txt`.
 - `test-e2e/git.test.ts` builds a temporary git repository with an empty global git configuration.
