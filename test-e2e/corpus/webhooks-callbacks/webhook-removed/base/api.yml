@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info: {title: Pet Events, version: 1.0.0}
+paths: {}
+webhooks:
+  newPet:
+    post:
+      operationId: newPetEvent
+      summary: A pet was added.
+      requestBody:
+        description: A pet event.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, name]
+              properties:
+                id: {type: string}
+                name: {type: string}
+                kind: {type: string, enum: [created, updated]}
+      responses:
+        '200': {description: The consumer received the event.}
+  petDeleted:
+    post:
+      operationId: petDeletedEvent
+      requestBody:
+        description: A pet event.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, name]
+              properties:
+                id: {type: string}
+                name: {type: string}
+                kind: {type: string, enum: [created, updated]}
+      responses:
+        '200': {description: OK}

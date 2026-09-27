@@ -1,0 +1,2 @@
+description: "The callback URL expression changes from callbackUrl to the header X-Callback. The API then calls a different URL, so existing subscribers stop receiving events."
+expect: breaking

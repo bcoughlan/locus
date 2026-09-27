@@ -1,0 +1,2 @@
+description: "The head version removes the webhook newPet. Consumers stop receiving the events they depend on."
+expect: breaking

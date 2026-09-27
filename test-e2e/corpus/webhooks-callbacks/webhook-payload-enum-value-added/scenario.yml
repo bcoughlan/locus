@@ -1,0 +1,2 @@
+description: "The enum of kind in the webhook payload gains the value deleted. A consumer that handles only the known values can fail."
+expect: breaking

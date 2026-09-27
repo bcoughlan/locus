@@ -24,7 +24,7 @@ export function classifyAdded(node: ViewNode, parents: Parents = {}): Verdict {
     const parent = parents.head;
     switch (node.kind) {
         case 'operation':
-            return verdict(COMPATIBLE, 'endpoint added');
+            return verdict(COMPATIBLE, parent?.kind === 'callback' ? 'callback operation added' : 'endpoint added');
         case 'callback':
             return verdict(COMPATIBLE, 'callback added');
         case 'securityRequirement':
@@ -73,7 +73,7 @@ export function classifyAdded(node: ViewNode, parents: Parents = {}): Verdict {
 export function classifyRemoved(node: ViewNode, parents: Parents = {}): Verdict {
     switch (node.kind) {
         case 'operation':
-            return verdict(BREAKING, 'endpoint removed');
+            return verdict(BREAKING, parents.base?.kind === 'callback' ? 'callback operation removed' : 'endpoint removed');
         case 'callback':
             return verdict(BREAKING, 'callback removed');
         case 'securityRequirement':
@@ -226,9 +226,12 @@ export function classifyAttr(name: AttrName, before: unknown, after: unknown, no
 /** Attributes whose array values are sets: order does not matter. */
 export const SET_ATTRS: ReadonlySet<AttrName> = new Set(['enum', 'tags', 'servers', 'scopes', 'type']);
 
-/** `/pets/{id}` and `/pets/{petId}` address the same endpoint. */
+/**
+ * `/pets/{id}` and `/pets/{petId}` address the same endpoint. A callback
+ * runtime expression (`{$request.body#/url}`) is not a template parameter, so it stays.
+ */
 export function normalizePath(path: string): string {
-    return path.replace(/\{[^}]*\}/g, '{}');
+    return path.replace(/\{[^}$][^}]*\}/g, '{}');
 }
 
 // --- Rule helpers -----------------------------------------------------------

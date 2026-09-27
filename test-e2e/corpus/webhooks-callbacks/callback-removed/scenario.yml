@@ -1,0 +1,2 @@
+description: "The subscribe operation loses the callback onPetEvent. Subscribers stop receiving the events."
+expect: breaking

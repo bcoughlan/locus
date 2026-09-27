@@ -1,0 +1,2 @@
+description: "Only the description of the webhook payload changes."
+expect: compatible

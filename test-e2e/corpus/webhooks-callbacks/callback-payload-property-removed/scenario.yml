@@ -1,0 +1,2 @@
+description: "The callback payload loses the property status. The subscriber reads it, so the removal is breaking."
+expect: breaking

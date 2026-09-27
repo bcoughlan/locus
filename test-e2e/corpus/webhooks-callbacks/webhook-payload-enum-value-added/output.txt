@@ -1,0 +1,26 @@
+# The enum of kind in the webhook payload gains the value deleted. A consumer that handles only the known values can fail.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pet Events 1.0.0
+
+    Webhooks
+
+~   POST newPet  newPetEvent  [breaking]
+      A pet was added.
+      Request
+        Body  required
+          A pet event.
+          application/json  object
+            id  string  required
+            name  string  required
+~           kind  string
+              Allowed values: created, updated, deleted
+~             enum: created, updated → created, updated, deleted  [breaking: enum value added: deleted (client receives)]
+      Responses
+        200  The consumer received the event.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

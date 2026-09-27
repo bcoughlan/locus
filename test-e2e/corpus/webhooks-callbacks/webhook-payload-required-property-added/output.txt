@@ -1,0 +1,26 @@
+# The webhook payload gains the required property ownerId. The API writes the payload, so the consumer only receives more data.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pet Events 1.0.0
+
+    Webhooks
+
+~   POST newPet  newPetEvent  [changed]
+      A pet was added.
+      Request
+        Body  required
+          A pet event.
+          application/json  object
+            id  string  required
+            name  string  required
+            kind  string
+              Allowed values: created, updated
++           ownerId  string  required
+      Responses
+        200  The consumer received the event.
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

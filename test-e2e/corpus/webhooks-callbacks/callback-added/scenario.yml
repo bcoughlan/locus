@@ -1,0 +1,2 @@
+description: "The subscribe operation gains the callback onPetEvent. Subscribers that do not handle it can ignore it."
+expect: compatible

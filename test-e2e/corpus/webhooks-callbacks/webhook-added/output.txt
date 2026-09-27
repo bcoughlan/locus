@@ -1,0 +1,25 @@
+# The head version adds the webhook petDeleted. Consumers that do not know it can ignore it.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pet Events 1.0.0
+
+    Webhooks
+
++   POST petDeleted  petDeletedEvent  [added]
++     Request
++       Body  required
++         A pet event.
++         application/json  object
++           id  string  required
++           name  string  required
++           kind  string
++             Allowed values: created, updated
++     Responses
++       200  OK
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 1 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

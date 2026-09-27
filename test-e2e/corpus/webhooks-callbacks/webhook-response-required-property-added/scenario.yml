@@ -1,0 +1,2 @@
+description: "The response that the consumer returns gains a required property. The consumer writes that response, so existing consumers do not send it."
+expect: breaking

@@ -1,0 +1,31 @@
+# The callback payload gains the optional property reason. The subscriber only receives more data.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pet Subscriptions 2.0.0
+
+~   POST /subscriptions  subscribe  [changed]
+      Subscribe to pet events.
+      Request
+        Body  required
+          application/json  object
+            callbackUrl  string<uri>  required
+      Responses
+        201  Subscribed.
+      Callbacks
+        onPetEvent
+~         POST {$request.body#/callbackUrl}  [changed]
+            Request
+              Body  required
+                application/json  object
+                  id  string  required
+                  status  string
++                 reason  string
+            Responses
+              204  The subscriber accepted the event.
+
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

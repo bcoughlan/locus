@@ -1,0 +1,2 @@
+description: "The webhook payload loses the property kind. The consumer reads the payload, so a removed property is breaking."
+expect: breaking

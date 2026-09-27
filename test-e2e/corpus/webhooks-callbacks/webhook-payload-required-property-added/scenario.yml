@@ -1,0 +1,2 @@
+description: "The webhook payload gains the required property ownerId. The API writes the payload, so the consumer only receives more data."
+expect: compatible

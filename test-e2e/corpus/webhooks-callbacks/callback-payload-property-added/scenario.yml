@@ -1,0 +1,2 @@
+description: "The callback payload gains the optional property reason. The subscriber only receives more data."
+expect: compatible

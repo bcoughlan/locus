@@ -1,0 +1,26 @@
+# Only the description of the webhook payload changes.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pet Events 1.0.0
+
+    Webhooks
+
+~   POST newPet  newPetEvent  [changed]
+      A pet was added.
+      Request
+~       Body  required
+          The pet that was added, with its kind.
+~         description: A pet event. → The pet that was added, with its kind.
+          application/json  object
+            id  string  required
+            name  string  required
+            kind  string
+              Allowed values: created, updated
+      Responses
+        200  The consumer received the event.
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

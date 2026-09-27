@@ -1,0 +1,26 @@
+# The property name in the webhook payload is no longer required. A consumer that expects it can fail.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pet Events 1.0.0
+
+    Webhooks
+
+~   POST newPet  newPetEvent  [breaking]
+      A pet was added.
+      Request
+        Body  required
+          A pet event.
+          application/json  object
+            id  string  required
+~           name  string
+~             required → optional  [breaking: property became optional (client receives)]
+            kind  string
+              Allowed values: created, updated
+      Responses
+        200  The consumer received the event.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

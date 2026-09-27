@@ -1,0 +1,39 @@
+# The callback URL expression changes from callbackUrl to the header X-Callback. The API then calls a different URL, so existing subscribers stop receiving events.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pet Subscriptions 2.0.0
+
+~   POST /subscriptions  subscribe  [breaking]
+      Subscribe to pet events.
+      Request
+        Body  required
+          application/json  object
+            callbackUrl  string<uri>  required
+      Responses
+        201  Subscribed.
+      Callbacks
+        onPetEvent
++         POST {$request.header.X-Callback}  [added]
++           Request
++             Body  required
++               application/json  object
++                 id  string  required
++                 status  string
++           Responses
++             204  The subscriber accepted the event.
+
+-         POST {$request.body#/callbackUrl}  [breaking: callback operation removed]
+-           Request
+-             Body  required
+-               application/json  object
+-                 id  string  required
+-                 status  string
+-           Responses
+-             204  The subscriber accepted the event.
+
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

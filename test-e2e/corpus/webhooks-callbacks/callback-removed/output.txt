@@ -1,0 +1,30 @@
+# The subscribe operation loses the callback onPetEvent. Subscribers stop receiving the events.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pet Subscriptions 2.0.0
+
+~   POST /subscriptions  subscribe  [breaking]
+      Subscribe to pet events.
+      Request
+        Body  required
+          application/json  object
+            callbackUrl  string<uri>  required
+      Responses
+        201  Subscribed.
+-     Callbacks
+-       onPetEvent  [breaking: callback removed]
+-         POST {$request.body#/callbackUrl}  [removed]
+-           Request
+-             Body  required
+-               application/json  object
+-                 id  string  required
+-                 status  string
+-           Responses
+-             204  The subscriber accepted the event.
+
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

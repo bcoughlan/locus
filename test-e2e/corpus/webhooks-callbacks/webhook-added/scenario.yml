@@ -1,0 +1,2 @@
+description: "The head version adds the webhook petDeleted. Consumers that do not know it can ignore it."
+expect: compatible

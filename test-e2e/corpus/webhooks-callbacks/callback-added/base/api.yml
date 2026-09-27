@@ -1,0 +1,18 @@
+openapi: 3.0.3
+info: {title: Pet Subscriptions, version: 2.0.0}
+paths:
+  /subscriptions:
+    post:
+      operationId: subscribe
+      summary: Subscribe to pet events.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [callbackUrl]
+              properties:
+                callbackUrl: {type: string, format: uri}
+      responses:
+        '201': {description: Subscribed.}

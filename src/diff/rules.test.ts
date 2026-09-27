@@ -200,6 +200,7 @@ describe('classifyAttr', () => {
     });
 });
 
-test('normalizePath ignores path parameter names', () => {
+test('normalizePath ignores path parameter names, but not callback runtime expressions', () => {
     expect(normalizePath('/pets/{id}/toys/{toyId}')).toBe('/pets/{}/toys/{}');
+    expect(normalizePath('{$request.body#/callbackUrl}')).toBe('{$request.body#/callbackUrl}');
 });

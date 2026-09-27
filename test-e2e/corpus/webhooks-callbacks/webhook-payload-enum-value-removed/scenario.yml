@@ -1,0 +1,2 @@
+description: "The enum of kind in the webhook payload loses the value updated. The consumer receives fewer values than before."
+expect: compatible

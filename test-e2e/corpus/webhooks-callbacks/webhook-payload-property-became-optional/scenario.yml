@@ -1,0 +1,2 @@
+description: "The property name in the webhook payload is no longer required. A consumer that expects it can fail."
+expect: breaking
