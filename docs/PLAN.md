@@ -50,7 +50,7 @@ Each milestone ends with the same quality gate:
 | Milestone | Content | Done when |
 | --- | --- | --- |
 | M0 Scaffold | package.json, tsconfig, vitest, ESLint, bin script, hello-world program with a unit test and an e2e test, GitHub Actions, CLAUDE.md | Build, lint, and tests pass. `node bin/run.js` runs the built code. |
-| M1 Rules | `docs/breaking-changes.md`: the list of breaking and compatible changes | Each rule has a direction (request or response) and a reason. |
+| M1 Rules | `docs/breaking-changes.md`: the list of breaking and compatible changes | Each rule has a class for each direction (request and response). A rule that is not obvious has a reason. |
 | M2 Loading | Glob and folder expansion, file pairing, parsing, multi-file `$ref` resolution, version detection, 3.0 shim | Unit tests cover refs across files, cycles, and the shim. |
 | M3 Model | Document to view tree: endpoints, parameters, bodies, responses, headers, schemas, security, callbacks, webhooks | Unit tests cover each node kind. |
 | M4 Diff | Endpoint matching, tree diff, rules table, severity roll-up | One unit test per rule. |
