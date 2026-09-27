@@ -1,0 +1,2 @@
+description: The head version removes the value large from the enum of the property size in the POST /pets request body.
+expect: breaking

@@ -1,0 +1,2 @@
+description: The POST /pets request body is a oneOf of Cat, Dog, and Bird. The head version removes the variant Bird.
+expect: breaking

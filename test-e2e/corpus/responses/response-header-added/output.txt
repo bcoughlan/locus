@@ -1,0 +1,23 @@
+# The head version adds an optional X-Rate-Limit-Remaining header to the 200 response of GET /pets.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [changed]
+      Request
+        Query parameters
+          limit  integer  >= 1  <= 100
+      Responses
+        200  A list of pets.
++         Headers
++           X-Rate-Limit-Remaining  integer
++             The number of requests left in the current window.
+          application/json  array[Pet]
+            id  string  required
+            name  string  required
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

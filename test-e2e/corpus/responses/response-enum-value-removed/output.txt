@@ -1,0 +1,24 @@
+# The head version removes the value pending from the status enum of the Pet schema in a response. The document uses OpenAPI 3.0.3.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/{petId}  getPet  [changed]
+      Request
+        Path parameters
+          petId  string  required
+      Responses
+        200  The pet.
+          application/json  Pet
+            id  string  required
+            name  string  required
+~           status  string
+              Allowed values: available, sold
+~             enum: available, pending, sold → available, sold
+        404  No pet has this ID.
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

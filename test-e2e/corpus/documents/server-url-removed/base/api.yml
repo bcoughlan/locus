@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: Shipping API
+  version: 2.0.0
+servers:
+  - url: https://api.example.com/v2
+  - url: https://legacy.example.com/shipping/v2
+paths:
+  /shipments:
+    get:
+      operationId: listShipments
+      responses:
+        '200':
+          description: A list of shipments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    status:
+                      type: string

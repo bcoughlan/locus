@@ -1,0 +1,20 @@
+# The head version adds a required updatedAt field to the itemSchema of an application/jsonl response. Each streamed item promises more.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/feed  streamPets  [changed]
+      Stream all pets as JSON Lines
+      Responses
+        200  One JSON object per line, one line per pet.
+          application/jsonl  stream of object
+            each item  object
+              id  string  required
+              name  string  required
++             updatedAt  string<date-time>  required
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

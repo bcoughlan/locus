@@ -1,0 +1,9 @@
+# The head version adds a writeOnly property to the Pet schema. Only a response uses Pet, and responses hide writeOnly properties.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

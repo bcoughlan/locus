@@ -1,0 +1,2 @@
+description: The client credentials flow of the oauth2 scheme moves its tokenUrl to another host. Clients that request tokens from the old URL fail to authenticate.
+expect: breaking

@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets:
+    post:
+      operationId: createPet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/Cat'
+                - $ref: '#/components/schemas/Dog'
+                - $ref: '#/components/schemas/Bird'
+      responses:
+        '201':
+          description: The pet was created.
+components:
+  schemas:
+    Cat:
+      type: object
+      required: [name, huntingSkill]
+      properties:
+        name:
+          type: string
+        huntingSkill:
+          type: string
+    Dog:
+      type: object
+      required: [name, packSize]
+      properties:
+        name:
+          type: string
+        packSize:
+          type: integer
+    Bird:
+      type: object
+      required: [name, wingspan]
+      properties:
+        name:
+          type: string
+        wingspan:
+          type: number

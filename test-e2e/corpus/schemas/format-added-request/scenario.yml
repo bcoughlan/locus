@@ -1,0 +1,2 @@
+description: The head version adds format date to the string property birthDate in the POST /pets request body.
+expect: breaking

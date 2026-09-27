@@ -1,0 +1,2 @@
+description: The head version changes the type of the tag property in a response from string or null to string.
+expect: compatible

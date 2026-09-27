@@ -1,0 +1,2 @@
+description: The query parameter available of GET /pets loses allowEmptyValue true, so the server no longer accepts an empty value.
+expect: breaking

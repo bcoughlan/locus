@@ -1,0 +1,2 @@
+description: The head version adds a required property species to the NewPet schema in the POST /pets request body.
+expect: breaking

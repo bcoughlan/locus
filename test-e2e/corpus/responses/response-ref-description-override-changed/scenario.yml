@@ -1,0 +1,2 @@
+description: The 200 response of GET /pets/{petId} is a 3.1 reference with a sibling description. The head version changes that description.
+expect: compatible

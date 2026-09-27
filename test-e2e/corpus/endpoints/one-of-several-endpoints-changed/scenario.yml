@@ -1,0 +1,2 @@
+description: The document has four endpoints. Only GET /pets changes, with a new optional query parameter limit. The other three endpoints stay the same.
+expect: compatible

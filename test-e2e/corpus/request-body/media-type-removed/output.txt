@@ -1,0 +1,22 @@
+# The head version removes the application/xml media type from the POST /pets request body. The application/json media type stays.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [breaking]
+      Request
+        Body  required
+          application/json  NewPet
+            name  string  required
+            tag  string
+-         application/xml  NewPet  [breaking: media type application/xml removed]
+-           name  string  required
+-           tag  string
+      Responses
+        201  The pet was created.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

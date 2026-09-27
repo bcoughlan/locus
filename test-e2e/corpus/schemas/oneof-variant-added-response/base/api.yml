@@ -1,0 +1,41 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The pet.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Cat'
+                  - $ref: '#/components/schemas/Dog'
+components:
+  schemas:
+    Cat:
+      type: object
+      required: [name, huntingSkill]
+      properties:
+        name:
+          type: string
+        huntingSkill:
+          type: string
+    Dog:
+      type: object
+      required: [name, packSize]
+      properties:
+        name:
+          type: string
+        packSize:
+          type: integer

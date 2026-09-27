@@ -1,0 +1,23 @@
+# The apiKey scheme changes its header name from X-API-Key to X-Api-Token. Clients that send the old header are rejected.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Weather API 1.5.0
+
+~   GET /forecasts/{city}  getForecast  [breaking]
+      Security
+~       apiKey  apiKey in header "X-Api-Token"
+~         parameterName: X-API-Key → X-Api-Token  [breaking: security scheme changed (parameterName)]
+      Request
+        Path parameters
+          city  string  required
+      Responses
+        200  The forecast for the city.
+          application/json  object
+            city  string
+            temperature  number
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

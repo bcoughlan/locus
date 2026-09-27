@@ -1,0 +1,21 @@
+# DELETE /pets/{petId} required the pets:write OAuth scope. The head version also requires pets:admin, so tokens without that scope are rejected.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pet Store 1.2.0
+
+~   DELETE /pets/{petId}  deletePet  [breaking]
+      Security
+~       petAuth  oauth2  scopes: pets:admin, pets:write
+~         scopes: pets:write → pets:admin, pets:write  [breaking: scope added]
+          authorizationCode  authorization: https://auth.example.com/authorize  token: https://auth.example.com/token
+      Request
+        Path parameters
+          petId  integer<int64>  required
+      Responses
+        204  The pet was deleted.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

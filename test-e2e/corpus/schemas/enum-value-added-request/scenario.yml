@@ -1,0 +1,2 @@
+description: The head version adds the value giant to the enum of the property size in the POST /pets request body.
+expect: compatible

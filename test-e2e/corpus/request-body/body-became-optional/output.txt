@@ -1,0 +1,20 @@
+# The request body of POST /pets/search changes from required to optional.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets/search  searchPets  [changed]
+      Request
+~       Body
+~         required: required → optional
+          application/json  object
+            species  string
+            maxAge  integer
+      Responses
+        200  The pets that match the filter.
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

@@ -1,0 +1,2 @@
+description: The head version removes the optional property tag from the NewPet schema in the POST /pets request body.
+expect: breaking

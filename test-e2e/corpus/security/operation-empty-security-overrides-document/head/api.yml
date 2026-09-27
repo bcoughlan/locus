@@ -1,0 +1,44 @@
+openapi: 3.0.3
+info:
+  title: Inventory API
+  version: 3.1.0
+security:
+  - apiKey: []
+paths:
+  /items:
+    get:
+      operationId: listItems
+      responses:
+        '200':
+          description: A list of items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sku:
+                      type: string
+                    quantity:
+                      type: integer
+  /health:
+    get:
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

@@ -1,0 +1,2 @@
+description: The head version removes the default error response of GET /pets. The document uses OpenAPI 3.0.3.
+expect: compatible

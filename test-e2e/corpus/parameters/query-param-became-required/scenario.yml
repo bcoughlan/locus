@@ -1,0 +1,2 @@
+description: The optional query parameter species of GET /pets becomes required.
+expect: breaking

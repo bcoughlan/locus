@@ -1,0 +1,2 @@
+description: NewPet in the POST /pets request body is an allOf of PetBase and an inline object. The head version adds a required property species to PetBase.
+expect: breaking

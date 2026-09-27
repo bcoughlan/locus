@@ -1,0 +1,20 @@
+# The minItems of the array property photoUrls in the POST /pets request body increases from 1 to 2.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [breaking]
+      Request
+        Body  required
+          application/json  NewPet
+            name  string  required
+~           photoUrls  array[string<uri>]  required  >= 2 items  <= 5 items
+~             minItems: 1 → 2  [breaking: minItems increased (client sends)]
+      Responses
+        201  The pet was created.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

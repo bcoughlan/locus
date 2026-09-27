@@ -1,0 +1,2 @@
+description: The request body and the 201 response of POST /pets share the Pet schema. The head version adds a required species property to Pet.
+expect: breaking

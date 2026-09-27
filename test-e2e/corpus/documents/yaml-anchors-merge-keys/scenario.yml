@@ -1,0 +1,2 @@
+description: The head version uses YAML anchors, aliases, and merge keys (<<) to reuse a parameter, a schema, and an error response. The base version writes each part in full. After YAML parsing, both versions hold the same values.
+expect: unchanged

@@ -1,0 +1,23 @@
+openapi: 3.1.0
+info:
+  title: Customers API
+  version: 1.0.0
+paths:
+  /customers:
+    post:
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, address]
+              properties:
+                name:
+                  type: string
+                address:
+                  $ref: './shared/address.yml#/Address'
+      responses:
+        '201':
+          description: The customer was created.

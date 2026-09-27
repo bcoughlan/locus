@@ -1,0 +1,20 @@
+# The folder held one API, pets.yml. The head version adds a second API in a new file, orders.yml. The pets API stays the same.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
++ head/orders.yml (new file)  Orders API 1.0.0
+
++   POST /orders  createOrder  [added]
++     Request
++       Body  required
++         application/json  object
++           petId  integer  required
++           quantity  integer  >= 1
++     Responses
++       201  The order was created.
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 1 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

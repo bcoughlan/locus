@@ -1,0 +1,2 @@
+description: The property tag in the GET /pets/{petId} response changes from type string to type [string, 'null']. This is the response twin of null-allowed-request.
+expect: breaking

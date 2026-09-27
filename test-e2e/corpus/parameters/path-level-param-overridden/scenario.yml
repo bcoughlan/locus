@@ -1,0 +1,2 @@
+description: The path item /pets declares an optional query parameter format. In the head version, GET /pets overrides it with an operation-level parameter of the same name that is required.
+expect: breaking

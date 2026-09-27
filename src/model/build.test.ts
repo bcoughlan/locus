@@ -3,13 +3,10 @@ import { buildYaml as build, childKeys as keys, find, spec } from '../testing/bu
 import type { ViewNode } from './tree.ts';
 
 describe('document and operations', () => {
-    test('the document node holds title, version, OpenAPI version, and servers', async () => {
+    test('the document node holds title, version, and servers, but not the OpenAPI version', async () => {
         const doc = await build(spec('  {}', 'servers: [{url: "https://api.example.com"}]'));
-        expect(doc.info).toMatchObject({
-            kind: 'document',
-            label: 'Test',
-            attrs: { title: 'Test', version: '1', openapi: '3.1.0', servers: ['https://api.example.com'] },
-        });
+        expect(doc.info).toMatchObject({ kind: 'document', label: 'Test' });
+        expect(doc.info.attrs).toEqual({ title: 'Test', version: '1', servers: ['https://api.example.com'] });
     });
 
     test('operations in document order, with 3.2 query and additionalOperations', async () => {
@@ -455,10 +452,10 @@ describe('security and callbacks', () => {
         const doc = await build(spec('  /pets:\n    get: {responses: {}}', `security: [{oauth: [write, read]}, {apiKey: []}, {}]\n${components}`));
         const security = find(doc.operations[0], 'security');
         expect(keys(security)).toEqual(['oauth', 'apiKey', 'none']);
-        expect(find(security, 'oauth', 'oauth').attrs).toEqual({
-            schemeType: 'oauth2',
-            flows: { authorizationCode: { authorizationUrl: 'https://a/auth', tokenUrl: 'https://a/token' } },
-            scopes: ['read', 'write'],
+        expect(find(security, 'oauth', 'oauth').attrs).toEqual({ schemeType: 'oauth2', scopes: ['read', 'write'] });
+        expect(find(security, 'oauth', 'oauth', 'authorizationCode')).toMatchObject({
+            kind: 'oauthFlow',
+            attrs: { authorizationUrl: 'https://a/auth', tokenUrl: 'https://a/token' },
         });
         expect(find(security, 'apiKey', 'apiKey').attrs).toEqual({ schemeType: 'apiKey', in: 'header', parameterName: 'X-API-Key' });
     });

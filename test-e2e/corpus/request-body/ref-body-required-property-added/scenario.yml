@@ -1,0 +1,2 @@
+description: POST /pets and PUT /pets/{petId} use the request body components/requestBodies/PetBody. The head version adds a required property species to its schema.
+expect: breaking

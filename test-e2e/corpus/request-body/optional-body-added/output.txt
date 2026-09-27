@@ -1,0 +1,20 @@
+# The head version adds an optional JSON request body to POST /pets/{petId}/adopt, which had no body.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets/{petId}/adopt  adoptPet  [changed]
+      Request
+        Path parameters
+          petId  string  required
++       Body
++         application/json  object
++           note  string
+      Responses
+        204  The pet was adopted.
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

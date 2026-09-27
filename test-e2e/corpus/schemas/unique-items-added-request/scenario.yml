@@ -1,0 +1,2 @@
+description: The head version adds uniqueItems true to the array property tags in the POST /pets request body.
+expect: breaking

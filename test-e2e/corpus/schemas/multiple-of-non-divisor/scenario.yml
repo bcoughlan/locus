@@ -1,0 +1,2 @@
+description: The multipleOf of the property weightGrams in the POST /pets request body changes from 10 to 4. The new value does not divide the old value.
+expect: breaking

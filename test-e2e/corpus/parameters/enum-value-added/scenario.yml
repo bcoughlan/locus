@@ -1,0 +1,2 @@
+description: The enum of the query parameter status gets a new value, sold. A request value can accept more.
+expect: compatible

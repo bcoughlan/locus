@@ -1,0 +1,2 @@
+description: The maximum of the query parameter limit decreases from 100 to 50. A limit tightened on a request value is breaking.
+expect: breaking

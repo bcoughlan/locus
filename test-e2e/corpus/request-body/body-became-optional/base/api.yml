@@ -1,0 +1,22 @@
+openapi: 3.2.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/search:
+    post:
+      operationId: searchPets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                species:
+                  type: string
+                maxAge:
+                  type: integer
+      responses:
+        '200':
+          description: The pets that match the filter.

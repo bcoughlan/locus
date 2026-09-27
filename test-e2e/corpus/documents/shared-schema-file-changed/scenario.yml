@@ -1,0 +1,2 @@
+description: Two APIs reference the Address schema in shared/address.yml, which has no openapi field. The head version adds a required countryCode to Address. This breaks the request body of POST /customers, and it is compatible for the GET /stores/{storeId} response.
+expect: breaking

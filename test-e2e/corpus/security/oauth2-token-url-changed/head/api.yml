@@ -1,0 +1,33 @@
+openapi: 3.0.3
+info:
+  title: Billing API
+  version: 5.0.0
+paths:
+  /invoices:
+    get:
+      operationId: listInvoices
+      security:
+        - machineAuth: [invoices:read]
+      responses:
+        '200':
+          description: A list of invoices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    number:
+                      type: string
+                    amountDue:
+                      type: integer
+components:
+  securitySchemes:
+    machineAuth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.example.com/oauth2/v2/token
+          scopes:
+            invoices:read: Read invoices.

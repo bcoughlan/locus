@@ -1,0 +1,2 @@
+description: The description of the apiKey security scheme changes. The scheme itself stays the same.
+expect: compatible

@@ -39,9 +39,15 @@ export function diffDocument(id: string, base: DocumentSide | undefined, head: D
         info,
         operations,
         webhooks,
-        warnings: [...(head?.model.warnings ?? []), ...(base?.model.warnings ?? []).map((warning) => `base: ${warning}`)],
+        warnings: mergeWarnings(base?.model.warnings ?? [], head?.model.warnings ?? []),
         impact,
     };
+}
+
+/** Head warnings, then base warnings that the head does not repeat, marked as such. */
+function mergeWarnings(base: string[], head: string[]): string[] {
+    const shown = new Set(head);
+    return [...head, ...base.filter((warning) => !shown.has(warning)).map((warning) => `base: ${warning}`)];
 }
 
 export function buildReport(documents: DocumentDiff[], baseLabel: string, headLabel: string): DiffReport {
@@ -132,8 +138,8 @@ function copy(node: ViewNode, status: ChangeStatus, children: DiffNode[]): DiffN
 
 function diffAttrs(base: ViewNode, head: ViewNode): AttrChange[] {
     const changes: AttrChange[] = [];
-    // Path parameters match by position, so their name can differ. Other labels derive from keys or attributes.
-    if (base.label !== head.label && head.kind === 'parameter') {
+    // Path parameters match by position (key `#0`), so their name can differ. Other labels derive from keys or attributes.
+    if (base.label !== head.label && head.kind === 'parameter' && head.key.startsWith('#')) {
         changes.push({ name: 'name', before: base.label, after: head.label, severity: 'compatible', reason: 'renamed' });
     }
     const names = new Set([...Object.keys(head.attrs), ...Object.keys(base.attrs)] as AttrName[]);

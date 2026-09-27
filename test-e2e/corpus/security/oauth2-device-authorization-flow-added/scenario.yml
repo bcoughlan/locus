@@ -1,0 +1,2 @@
+description: The oauth2 scheme gains the OpenAPI 3.2 deviceAuthorization flow next to its authorization code flow. The existing flow and its URLs stay the same, so clients that use it keep working. The rules say that a changed flow URL is breaking, but no existing URL changes here.
+expect: compatible

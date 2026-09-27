@@ -1,0 +1,2 @@
+description: The head version changes the age property of the Pet schema in a response from number to integer.
+expect: compatible

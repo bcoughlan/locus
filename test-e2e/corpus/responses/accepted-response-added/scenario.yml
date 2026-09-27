@@ -1,0 +1,2 @@
+description: The head version adds a 202 response next to the 201 response of POST /pets. A new success status code is compatible under the rules.
+expect: compatible

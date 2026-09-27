@@ -1,0 +1,24 @@
+# The head version makes the X-Total-Count header of the 200 response of GET /pets required. The document uses OpenAPI 3.0.3.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [changed]
+      Request
+        Query parameters
+          limit  integer  >= 1  <= 100
+      Responses
+        200  A list of pets.
+          Headers
+~           X-Total-Count  integer  required
+              The total number of pets.
+~             required: optional → required
+          application/json  array[Pet]
+            id  string  required
+            name  string  required
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

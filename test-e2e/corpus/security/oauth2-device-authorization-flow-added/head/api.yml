@@ -1,0 +1,39 @@
+openapi: 3.2.0
+info:
+  title: Streaming API
+  version: 1.0.0
+paths:
+  /playlists:
+    get:
+      operationId: listPlaylists
+      security:
+        - userAuth: [playlists:read]
+      responses:
+        '200':
+          description: The playlists of the user.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+components:
+  securitySchemes:
+    userAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/token
+          scopes:
+            playlists:read: Read the playlists of the user.
+        deviceAuthorization:
+          deviceAuthorizationUrl: https://auth.example.com/device
+          tokenUrl: https://auth.example.com/token
+          scopes:
+            playlists:read: Read the playlists of the user.

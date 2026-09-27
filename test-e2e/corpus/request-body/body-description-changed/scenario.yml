@@ -1,0 +1,2 @@
+description: The head version changes only the description of the POST /pets request body.
+expect: compatible

@@ -1,0 +1,2 @@
+description: The head version adds specification extensions (x-* fields) at every level, from the document root to a schema property. The tool ignores extensions, so the meaning stays the same.
+expect: unchanged

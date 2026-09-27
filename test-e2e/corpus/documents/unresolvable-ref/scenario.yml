@@ -1,0 +1,2 @@
+description: Both versions hold two $refs that do not resolve, one to a missing file and one to a misspelled schema name. The head version also adds an optional query parameter. The tool warns about the $refs and still compares the rest.
+expect: compatible

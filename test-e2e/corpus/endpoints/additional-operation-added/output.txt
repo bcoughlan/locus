@@ -1,0 +1,24 @@
+# An OpenAPI 3.2 COPY operation is added to /pets/{petId} with additionalOperations. GET /pets/{petId} stays the same.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
++   COPY /pets/{petId}  copyPet  [added]
++     Copy a pet to a new ID
++     Request
++       Path parameters
++         petId  integer<int64>  required
++       Header parameters
++         Destination  string  required
++     Responses
++       201  The copy of the pet.
++         application/json  Pet
++           id  integer<int64>  required
++           name  string  required
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 1 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

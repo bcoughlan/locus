@@ -1,0 +1,2 @@
+description: The type of the property microchipId in the POST /pets request body changes from string to integer.
+expect: breaking

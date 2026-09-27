@@ -1,0 +1,2 @@
+description: DELETE /pets/{petId} required the pets:write OAuth scope. The head version also requires pets:admin, so tokens without that scope are rejected.
+expect: breaking

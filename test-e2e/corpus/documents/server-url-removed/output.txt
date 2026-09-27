@@ -1,0 +1,12 @@
+# The head version removes the legacy server URL. Clients that call the legacy host fail.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Shipping API 2.0.0
+~   servers: https://api.example.com/v2, https://legacy.example.com/shipping/v2 → https://api.example.com/v2  [breaking: server removed]
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: breaking changes found.

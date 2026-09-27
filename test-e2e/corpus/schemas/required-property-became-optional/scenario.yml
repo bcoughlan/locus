@@ -1,0 +1,2 @@
+description: The required property species of the NewPet schema in the POST /pets request body becomes optional.
+expect: compatible

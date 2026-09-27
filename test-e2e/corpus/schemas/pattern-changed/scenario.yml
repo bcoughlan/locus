@@ -1,0 +1,2 @@
+description: The pattern of the property microchipId in the POST /pets request body changes from 15 digits to 10 to 15 digits. The tool cannot compare patterns, so each change counts as breaking.
+expect: breaking

@@ -1,0 +1,2 @@
+description: GET /articles accepted anonymous access ({}) or a bearer token. The head version removes the anonymous alternative, so clients that send no token are rejected.
+expect: breaking

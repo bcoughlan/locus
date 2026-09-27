@@ -45,6 +45,8 @@ export function classifyAdded(node: ViewNode, parents: Parents = {}): Verdict {
                     : verdict(COMPATIBLE, `optional ${noun(node, parent)} added`);
             }
             return verdict(COMPATIBLE, `${noun(node, parent)} added`);
+        case 'oauthFlow':
+            return verdict(COMPATIBLE, `OAuth flow ${node.label} added`);
         case 'response':
             return verdict(COMPATIBLE, `response ${node.key} added`);
         case 'mediaType':
@@ -84,6 +86,8 @@ export function classifyRemoved(node: ViewNode, parents: Parents = {}): Verdict 
         case 'requestBody':
         case 'property':
             return verdict(BREAKING, `${noun(node, parents.base)} removed`);
+        case 'oauthFlow':
+            return verdict(BREAKING, `OAuth flow ${node.label} removed`);
         case 'response':
             // Clients depend on success and redirect responses. A removed error response needs no client change.
             return /^[123]/.test(node.key)
@@ -120,7 +124,6 @@ export function classifyAttr(name: AttrName, before: unknown, after: unknown, no
         case 'tags':
         case 'operationId':
         case 'version':
-        case 'openapi':
         case 'readOnly':
         case 'writeOnly':
         case 'bearerFormat':
@@ -188,6 +191,8 @@ export function classifyAttr(name: AttrName, before: unknown, after: unknown, no
                 : verdict(COMPATIBLE, 'additional properties allowed');
         case 'mapping':
             return mappingVerdict(node, before as Record<string, string> | undefined, after as Record<string, string> | undefined);
+        case 'truncated':
+            return verdict(COMPATIBLE, 'schema not expanded here (the document is too large)');
         case 'recursive':
             // Both sides refer back to an enclosing schema: only its name changed.
             return before !== undefined && after !== undefined
@@ -205,8 +210,12 @@ export function classifyAttr(name: AttrName, before: unknown, after: unknown, no
         case 'scheme':
         case 'openIdConnectUrl':
         case 'oauth2MetadataUrl':
-        case 'flows':
             return verdict(BREAKING, `security scheme changed (${name})`);
+        case 'authorizationUrl':
+        case 'deviceAuthorizationUrl':
+        case 'tokenUrl':
+        case 'refreshUrl':
+            return verdict(BREAKING, `OAuth ${name} changed`);
         case 'scopes':
             return difference(after, before).length > 0 ? verdict(BREAKING, 'scope added') : verdict(COMPATIBLE, 'scope removed');
         default:

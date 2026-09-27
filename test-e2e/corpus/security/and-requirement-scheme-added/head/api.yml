@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info:
+  title: Payments API
+  version: 4.2.0
+paths:
+  /payments:
+    post:
+      operationId: createPayment
+      security:
+        - bearerAuth: []
+          tenantKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency]
+              properties:
+                amount:
+                  type: integer
+                  minimum: 1
+                currency:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+      responses:
+        '201':
+          description: The payment was created.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    tenantKey:
+      type: apiKey
+      in: header
+      name: X-Tenant-Key

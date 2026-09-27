@@ -56,8 +56,14 @@ export async function expandPatterns(patterns: string[], cwd: string): Promise<S
     }
     const root = commonFolder(bases);
     return [...found]
-        .map(([path, explicit]) => ({ id: toPosix(relative(root, path)), path, display: toPosix(relative(cwd, path)), explicit }))
+        .map(([path, explicit]) => ({ id: toPosix(relative(root, path)), path, display: displayPath(path, cwd), explicit }))
         .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** A path relative to `cwd`, or the absolute path when the relative one climbs more than two folders. */
+export function displayPath(path: string, cwd: string): string {
+    const rel = toPosix(relative(cwd, path));
+    return rel.startsWith('../../../') ? toPosix(path) : rel;
 }
 
 /**

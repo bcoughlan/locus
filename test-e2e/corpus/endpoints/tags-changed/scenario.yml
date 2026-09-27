@@ -1,0 +1,2 @@
+description: The tags of GET /pets change from [pets] to [pets, public].
+expect: compatible

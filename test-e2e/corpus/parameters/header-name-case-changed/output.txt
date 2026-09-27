@@ -1,0 +1,9 @@
+# The header parameter X-Request-Id is renamed to x-request-id. HTTP header names are case-insensitive, so the request stays the same.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

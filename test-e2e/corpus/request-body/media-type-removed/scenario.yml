@@ -1,0 +1,2 @@
+description: The head version removes the application/xml media type from the POST /pets request body. The application/json media type stays.
+expect: breaking

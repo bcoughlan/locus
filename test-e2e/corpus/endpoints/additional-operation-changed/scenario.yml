@@ -1,0 +1,2 @@
+description: In the OpenAPI 3.2 COPY operation of /pets/{petId} (additionalOperations), the optional header parameter Destination becomes required.
+expect: breaking

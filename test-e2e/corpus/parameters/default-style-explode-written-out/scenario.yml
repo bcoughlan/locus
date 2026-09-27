@@ -1,0 +1,2 @@
+description: The head version writes out the default style and explode of each parameter (form and true for query, simple and false for path and header). The base version omits them, so the serialized form stays the same.
+expect: unchanged

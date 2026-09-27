@@ -1,0 +1,2 @@
+description: The apiKey scheme changes its header name from X-API-Key to X-Api-Token. Clients that send the old header are rejected.
+expect: breaking

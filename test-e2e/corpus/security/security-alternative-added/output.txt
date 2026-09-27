@@ -1,0 +1,20 @@
+# GET /reports accepted an API key. The head version also accepts a bearer token as a second alternative, so clients that send the API key keep working.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Reporting API 1.0.0
+
+~   GET /reports  listReports  [changed]
+      Security
+        apiKey  apiKey in header "X-API-Key"
++       bearerAuth  http bearer
+      Responses
+        200  A list of reports.
+          application/json  array[object]
+            id  string
+            createdAt  string<date-time>
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

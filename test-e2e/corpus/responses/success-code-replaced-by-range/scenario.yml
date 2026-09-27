@@ -1,0 +1,2 @@
+description: The head version replaces the 200 response of GET /pets with a 2XX range response. The rules count this as a removed 200 response.
+expect: breaking

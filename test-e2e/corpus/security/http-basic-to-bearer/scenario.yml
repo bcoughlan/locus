@@ -1,0 +1,2 @@
+description: The userAuth scheme keeps its name but changes from HTTP basic to HTTP bearer. Clients that send a user name and password are rejected.
+expect: breaking

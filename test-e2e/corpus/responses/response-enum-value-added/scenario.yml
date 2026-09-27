@@ -1,0 +1,2 @@
+description: The head version adds the value adopted to the status enum of the Pet schema in the 200 response of GET /pets/{petId}.
+expect: breaking

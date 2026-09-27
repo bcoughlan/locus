@@ -1,0 +1,23 @@
+# The query parameter available of GET /pets gets allowEmptyValue true, so the server now also accepts an empty value.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [changed]
+      List pets
+      Request
+        Query parameters
+~         available  boolean  allow empty value
+            Return only pets that are for sale.
+~           allowEmptyValue: (none) → true
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  integer<int64>  required
+            name  string  required
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

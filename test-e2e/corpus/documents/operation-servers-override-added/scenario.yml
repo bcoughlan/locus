@@ -1,0 +1,2 @@
+description: The head version gives POST /files its own servers list with only the upload host. That list replaces the document server for this endpoint, so the document server URL is removed for it.
+expect: breaking

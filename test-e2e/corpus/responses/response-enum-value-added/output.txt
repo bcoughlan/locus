@@ -1,0 +1,24 @@
+# The head version adds the value adopted to the status enum of the Pet schema in the 200 response of GET /pets/{petId}.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/{petId}  getPet  [breaking]
+      Request
+        Path parameters
+          petId  string  required
+      Responses
+        200  The pet.
+          application/json  Pet
+            id  string  required
+            name  string  required
+~           status  string
+              Allowed values: available, pending, sold, adopted
+~             enum: available, pending, sold → available, pending, sold, adopted  [breaking: enum value added: adopted (client receives)]
+        404  No pet has this ID.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

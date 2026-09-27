@@ -1,0 +1,2 @@
+description: The head version removes the optional tag property from the Pet schema in the 200 response of GET /pets/{petId}.
+expect: breaking

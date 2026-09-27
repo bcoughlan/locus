@@ -1,0 +1,2 @@
+description: The schema type of the query parameter page changes from integer to string, an unrelated type.
+expect: breaking

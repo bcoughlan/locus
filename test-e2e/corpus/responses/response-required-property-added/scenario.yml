@@ -1,0 +1,2 @@
+description: The head version adds a required status property to the Pet schema. Only the 200 response of GET /pets/{petId} uses Pet.
+expect: compatible

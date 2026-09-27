@@ -40,6 +40,7 @@ describe('classifyAdded', () => {
         ['optional security where there was none', apiKey, { head: security('none', 'apiKey') }, C, 'security alternative added'],
         ['security alternative', apiKey, { base: security('oauth'), head: security('oauth', 'apiKey') }, C, 'security alternative added'],
         ['anonymous access', node('securityRequirement', 'request', {}, 'none'), { base: security('apiKey') }, C, 'anonymous access added'],
+        ['OAuth flow', node('oauthFlow', 'request', {}, 'deviceAuthorization'), {}, C, 'OAuth flow deviceAuthorization added'],
         ['additional properties schema where false was', node('additionalProperties', 'response'), { base: node('property', 'response', { additionalProperties: false }) }, C, 'additional properties allowed'],
     ])('%s', (_name, added, parents, severity, reason) => {
         expect(classifyAdded(added, parents)).toEqual({ severity, reason });
@@ -72,6 +73,7 @@ describe('classifyRemoved', () => {
         ['security section removed', apiKey, { base: security('apiKey') }, C, 'security removed'],
         ['security replaced by anonymous access', apiKey, { head: security('none') }, C, 'security removed'],
         ['anonymous access', node('securityRequirement', 'request', {}, 'none'), { head: security('apiKey') }, B, 'anonymous access removed'],
+        ['OAuth flow', node('oauthFlow', 'request', {}, 'implicit'), {}, B, 'OAuth flow implicit removed'],
         ['additional properties schema replaced by false', node('additionalProperties'), { head: node('property', 'request', { additionalProperties: false }) }, C, 'additional properties schema removed'],
     ])('%s', (_name, removed, parents, severity, reason) => {
         expect(classifyRemoved(removed, parents)).toEqual({ severity, reason });
@@ -182,11 +184,11 @@ describe('classifyAttr', () => {
         ['security scheme type changed', 'schemeType', 'apiKey', 'http', req('securityScheme'), B],
         ['api key location changed', 'in', 'header', 'query', req('securityScheme'), B],
         ['api key name changed', 'parameterName', 'X-Key', 'X-API-Key', req('securityScheme'), B],
-        ['oauth flow URL changed', 'flows', { a: { tokenUrl: 'x' } }, { a: { tokenUrl: 'y' } }, req('securityScheme'), B],
+        ['oauth token URL changed', 'tokenUrl', 'https://a/token', 'https://b/token', req('oauthFlow'), B],
+        ['oauth refresh URL added', 'refreshUrl', undefined, 'https://a/refresh', req('oauthFlow'), B],
         ['security scheme description changed', 'description', 'a', 'b', req('securityScheme'), C],
         // Documents
         ['document version changed', 'version', '1.0', '1.1', res('document'), C],
-        ['OpenAPI version changed', 'openapi', '3.0.3', '3.1.0', res('document'), C],
     ])('%s', (_name, attr, before, after, target, severity) => {
         expect(classifyAttr(attr, before, after, target).severity).toBe(severity);
     });

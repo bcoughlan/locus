@@ -1,0 +1,2 @@
+description: The folder held one API, pets.yml. The head version adds a second API in a new file, orders.yml. The pets API stays the same.
+expect: compatible

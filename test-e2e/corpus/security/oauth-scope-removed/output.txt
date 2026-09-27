@@ -1,0 +1,21 @@
+# GET /pets required the pets:read and pets:write OAuth scopes. The head version requires only pets:read, so every token that worked before still works.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pet Store 1.2.0
+
+~   GET /pets  listPets  [changed]
+      Security
+~       petAuth  oauth2  scopes: pets:read
+~         scopes: pets:read, pets:write → pets:read
+          implicit  authorization: https://auth.example.com/authorize
+      Responses
+        200  A list of pets.
+          application/json  array[object]
+            id  integer
+            name  string
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

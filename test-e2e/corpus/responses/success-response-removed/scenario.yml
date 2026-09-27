@@ -1,0 +1,2 @@
+description: The head version removes the 200 response of DELETE /pets/{petId}. The 204 and 404 responses stay.
+expect: breaking

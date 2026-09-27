@@ -10,12 +10,14 @@ const ROOT = resolve('/virtual/api.yml');
 /** Build a document from YAML text. `files` holds other files, relative to the root's folder. */
 export async function buildYaml(yaml: string, files: Record<string, string> = {}): Promise<DocumentModel> {
     const texts = new Map([[ROOT, yaml], ...Object.entries(files).map(([name, text]) => [resolve('/virtual', name), text] as const)]);
-    const store = new DocumentStore(async (path) => {
-        const text = texts.get(path);
-        if (text === undefined) {
-            throw Object.assign(new Error('missing'), { code: 'ENOENT' });
-        }
-        return text;
+    const store = new DocumentStore({
+        readText: async (path) => {
+            const text = texts.get(path);
+            if (text === undefined) {
+                throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+            }
+            return text;
+        },
     });
     await store.loadWithRefs(ROOT);
     return buildDocument(store, ROOT, detectVersion(store.document(ROOT), ROOT)!);

@@ -1,0 +1,9 @@
+# The head version moves the document from OpenAPI 3.0.3 to 3.1.0 and rewrites nullable true on the property tag as type [string, 'null'].
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

@@ -1,0 +1,23 @@
+# The query parameter redirect of GET /pets gets allowReserved true, so reserved characters such as / and ? are no longer percent-encoded.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [breaking]
+      List pets
+      Request
+        Query parameters
+~         redirect  string<uri>  allow reserved
+            A URL to send the client to after the request.
+~           allowReserved: (none) → true  [breaking: serialization changed (allowReserved)]
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  integer<int64>  required
+            name  string  required
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

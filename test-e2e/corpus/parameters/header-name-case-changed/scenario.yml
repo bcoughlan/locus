@@ -1,0 +1,2 @@
+description: The header parameter X-Request-Id is renamed to x-request-id. HTTP header names are case-insensitive, so the request stays the same.
+expect: unchanged

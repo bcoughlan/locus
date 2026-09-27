@@ -1,0 +1,2 @@
+description: The endpoint GET /pets/{petId}/owner becomes deprecated.
+expect: compatible

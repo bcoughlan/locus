@@ -32,7 +32,16 @@ export interface BuildContext {
     family: OasFamily;
     /** Collects problems that do not stop the build. A Set, so each problem shows once. */
     warnings: Set<string>;
+    /** How many nested `$ref` targets a schema expands. Deeper ones show by name only. */
+    maxRefDepth: number;
+    /** The most schema nodes that the document may build, a guard against huge specs. */
+    nodeBudget: number;
+    /** Schema nodes built so far. */
+    nodeCount: number;
 }
+
+/** Thrown when a document builds more schema nodes than its budget allows. */
+export class TreeTooLarge extends Error {}
 
 export interface SchemaScope {
     direction: Direction;
@@ -65,6 +74,10 @@ export interface FlatSchema {
     recursive?: string;
     /** A reference back to an enclosing schema, found inside an `allOf` or a null alternative. */
     recursiveHit?: string;
+    /** Set when the schema is a reference deeper than `maxRefDepth`: it shows by name only. */
+    truncated?: string;
+    /** A reference deeper than `maxRefDepth`, found inside an `allOf` or a null alternative. */
+    truncatedHit?: string;
     unresolved?: string;
 }
 
@@ -113,8 +126,9 @@ export function flatten(locs: Located[], ctx: BuildContext): FlatSchema {
         keys: new Set(),
     };
     locs.forEach((loc, i) => collect(loc, flat, ctx, i === 0));
-    if (flat.recursive === undefined && flat.recursiveHit !== undefined && hasNoContent(flat)) {
-        flat.recursive = flat.recursiveHit;
+    if (hasNoContent(flat)) {
+        flat.recursive ??= flat.recursiveHit;
+        flat.truncated ??= flat.recursive === undefined ? flat.truncatedHit : undefined;
     }
     return flat;
 }
@@ -123,7 +137,7 @@ function collect(loc: Located, flat: FlatSchema, ctx: BuildContext, isTop: boole
     const target = ctx.store.deref(loc.raw, loc.file);
     if (target.unresolved !== undefined) {
         flat.unresolved ??= target.unresolved;
-        ctx.warnings.add(`Unresolved $ref "${target.unresolved}" in ${loc.file}${target.reason ? ` (${target.reason})` : ''}`);
+        ctx.warnings.add(`Unresolved $ref "${target.unresolved}" in ${ctx.store.display(loc.file)}${target.reason ? ` (${target.reason})` : ''}`);
         return;
     }
     let enclosing = loc.enclosing;
@@ -133,6 +147,14 @@ function collect(loc: Located, flat: FlatSchema, ctx: BuildContext, isTop: boole
                 flat.recursive = target.name;
             } else {
                 flat.recursiveHit ??= target.name;
+            }
+            return;
+        }
+        if (enclosing.size >= ctx.maxRefDepth) {
+            if (isTop) {
+                flat.truncated = target.name;
+            } else {
+                flat.truncatedHit ??= target.name;
             }
             return;
         }
@@ -225,7 +247,7 @@ function merge(raw: Record<string, unknown>, file: string, enclosing: ReadonlySe
             if (flat.composition === undefined) {
                 flat.composition = { kind, members: others.map(at) };
             } else {
-                ctx.warnings.add(`A schema in ${file} combines several oneOf/anyOf lists. Only the first one is compared.`);
+                ctx.warnings.add(`A schema in ${ctx.store.display(file)} combines several oneOf/anyOf lists. Only the first one is compared.`);
             }
         }
     }
@@ -285,6 +307,7 @@ export function schemaAttrs(flat: FlatSchema): Attrs {
     const defaultMapping = getString(discriminator?.defaultMapping);
     set('defaultMapping', defaultMapping === undefined ? undefined : refName(defaultMapping));
     set('recursive', flat.recursive);
+    set('truncated', flat.truncated);
     set('unresolved', flat.unresolved);
     return attrs;
 }
@@ -302,13 +325,16 @@ export function schemaNode(
     ctx: BuildContext,
     ownAttrs: Attrs = {},
 ): ViewNode {
+    if (++ctx.nodeCount > ctx.nodeBudget) {
+        throw new TreeTooLarge();
+    }
     const attrs: Attrs = { ...ownAttrs };
     for (const [name, value] of Object.entries(schemaAttrs(flat))) {
         if ((attrs as Record<string, unknown>)[name] === undefined) {
             (attrs as Record<string, unknown>)[name] = value;
         }
     }
-    const children = flat.recursive === undefined ? schemaChildren(flat, scope, ctx) : [];
+    const children = flat.recursive === undefined && flat.truncated === undefined ? schemaChildren(flat, scope, ctx) : [];
     return { kind, key, label, direction: scope.direction, attrs, children };
 }
 

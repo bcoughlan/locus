@@ -1,0 +1,2 @@
+description: The operation updatePet moves from PUT /pets/{petId} to PATCH /pets/{petId}. The operationId stays the same.
+expect: breaking

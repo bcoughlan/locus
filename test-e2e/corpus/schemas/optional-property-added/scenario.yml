@@ -1,0 +1,2 @@
+description: The head version adds an optional property tag to the NewPet schema in the POST /pets request body.
+expect: compatible

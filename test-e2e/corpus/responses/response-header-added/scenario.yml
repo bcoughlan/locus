@@ -1,0 +1,2 @@
+description: The head version adds an optional X-Rate-Limit-Remaining header to the 200 response of GET /pets.
+expect: compatible

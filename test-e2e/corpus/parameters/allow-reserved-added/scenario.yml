@@ -1,0 +1,2 @@
+description: The query parameter redirect of GET /pets gets allowReserved true, so reserved characters such as / and ? are no longer percent-encoded.
+expect: breaking

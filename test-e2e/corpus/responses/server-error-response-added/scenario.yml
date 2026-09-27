@@ -1,0 +1,2 @@
+description: The head version adds a 503 response with a Retry-After header to GET /pets/{petId}.
+expect: compatible

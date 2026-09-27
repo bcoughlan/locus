@@ -1,0 +1,24 @@
+# The head version adds an application/xml media type to the 200 response of GET /pets/{petId}.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/{petId}  getPet  [changed]
+      Request
+        Path parameters
+          petId  string  required
+      Responses
+        200  The pet.
+          application/json  Pet
+            id  string  required
+            name  string  required
++         application/xml  Pet
++           id  string  required
++           name  string  required
+        404  No pet has this ID.
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

@@ -1,0 +1,2 @@
+description: The maxItems of the array property photoUrls in the POST /pets request body increases from 5 to 10.
+expect: compatible

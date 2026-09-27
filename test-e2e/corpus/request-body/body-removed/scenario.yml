@@ -1,0 +1,2 @@
+description: The head version removes the optional JSON request body from POST /pets/{petId}/adopt.
+expect: breaking

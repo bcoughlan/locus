@@ -1,0 +1,2 @@
+description: The head version adds an application/xml media type to the 200 response of GET /pets/{petId}.
+expect: compatible

@@ -1,0 +1,22 @@
+# The multipart/form-data request body of POST /pets/{petId}/photos gets a new required field caption.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets/{petId}/photos  uploadPetPhoto  [breaking]
+      Request
+        Path parameters
+          petId  string  required
+        Body  required
+          multipart/form-data  object
+            file  string  required  media type image/jpeg
++           caption  string  required  [breaking: required property added]
+            takenOn  string<date>
+      Responses
+        201  The photo was stored.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

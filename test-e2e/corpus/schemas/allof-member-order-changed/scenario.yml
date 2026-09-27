@@ -1,0 +1,2 @@
+description: NewPet in the POST /pets request body is an allOf of PetBase and PetExtras. The head version swaps the order of the two members.
+expect: unchanged

@@ -1,0 +1,2 @@
+description: The head version removes the 404 response of GET /pets/{petId}. A removed error response needs no client change.
+expect: compatible

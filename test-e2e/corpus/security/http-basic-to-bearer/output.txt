@@ -1,0 +1,20 @@
+# The userAuth scheme keeps its name but changes from HTTP basic to HTTP bearer. Clients that send a user name and password are rejected.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Accounts API 1.0.0
+
+~   GET /me  getCurrentUser  [breaking]
+      Security
+~       userAuth  http bearer
+~         scheme: basic → bearer  [breaking: security scheme changed (scheme)]
+      Responses
+        200  The signed-in user.
+          application/json  object
+            id  string
+            email  string<email>
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

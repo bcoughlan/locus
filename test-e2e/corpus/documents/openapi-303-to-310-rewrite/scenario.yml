@@ -1,0 +1,2 @@
+description: The document moves from OpenAPI 3.0.3 to 3.1.0. The rewrite turns nullable into a type list and boolean exclusiveMinimum into a number. The meaning stays the same.
+expect: unchanged

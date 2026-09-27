@@ -1,0 +1,2 @@
+description: The head version adds a required updatedAt field to the itemSchema of an application/jsonl response. Each streamed item promises more.
+expect: compatible

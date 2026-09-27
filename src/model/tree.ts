@@ -27,6 +27,8 @@ export type NodeKind =
     | 'operation'
     | 'securityRequirement'
     | 'securityScheme'
+    /** One OAuth 2 flow of a security scheme, with its URLs. */
+    | 'oauthFlow'
     | 'parameter'
     | 'requestBody'
     | 'response'
@@ -49,8 +51,6 @@ export interface Attrs {
     // Documents
     /** `info.version`. */
     version?: string;
-    /** The `openapi` field. */
-    openapi?: string;
 
     // Operations
     method?: string;
@@ -84,10 +84,15 @@ export interface Attrs {
     bearerFormat?: string;
     openIdConnectUrl?: string;
     oauth2MetadataUrl?: string;
-    /** OAuth flows by flow name, each with its URLs. */
-    flows?: Record<string, JsonValue>;
     /** OAuth scopes that the requirement asks for. */
     scopes?: string[];
+
+    // OAuth flows
+    authorizationUrl?: string;
+    /** 3.2: the device authorization flow. */
+    deviceAuthorizationUrl?: string;
+    tokenUrl?: string;
+    refreshUrl?: string;
 
     // Schemas
     /** Schema name: the `title`, or else the name of the `$ref` target. */
@@ -129,6 +134,8 @@ export interface Attrs {
     defaultMapping?: string;
     /** The schema refers back to an enclosing schema with this name. The node has no children. */
     recursive?: string;
+    /** The document is too large to expand this referenced schema here. It shows by name only. */
+    truncated?: string;
     /** A `$ref` that does not resolve. */
     unresolved?: string;
 }
@@ -156,4 +163,6 @@ export interface DocumentModel {
     webhooks: ViewNode[];
     /** Problems that did not stop the build, for example unresolved references. */
     warnings: string[];
+    /** How many nested `$ref` targets the schemas expand. `Infinity` for all of them. */
+    refDepth: number;
 }

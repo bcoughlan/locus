@@ -1,0 +1,22 @@
+# The head version removes the id field from the itemSchema of a text/event-stream response.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/events  watchPets  [breaking]
+      Watch pet changes as server-sent events
+      Responses
+        200  A stream of pet change events.
+          text/event-stream  stream of object
+            each item  object
+              event  string  required
+                Allowed values: pet-created, pet-updated
+              data  string  required
+-             id  string  [breaking: property removed]
+              retry  integer
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

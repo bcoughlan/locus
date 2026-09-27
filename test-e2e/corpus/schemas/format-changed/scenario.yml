@@ -1,0 +1,2 @@
+description: The format of the property birthDate in the POST /pets request body changes from date to date-time.
+expect: breaking

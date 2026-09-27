@@ -1,0 +1,2 @@
+description: GET /orders/{orderId} required a bearer token. The head version removes all security from it, so clients that still send a token keep working.
+expect: compatible

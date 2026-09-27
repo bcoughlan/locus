@@ -1,0 +1,2 @@
+description: The head version removes the id field from the itemSchema of a text/event-stream response.
+expect: breaking

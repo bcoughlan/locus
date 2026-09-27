@@ -1,0 +1,2 @@
+description: An optional query parameter limit is added to GET /pets.
+expect: compatible

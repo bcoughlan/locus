@@ -1,0 +1,2 @@
+description: The head version writes the same API differently. The keys are in another order, the limit parameter is a $ref to components/parameters instead of inline, and some mappings use flow style.
+expect: unchanged

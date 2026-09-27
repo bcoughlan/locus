@@ -1,0 +1,2 @@
+description: The array query parameter tags changes from explode true (tags=a&tags=b) to explode false (tags=a,b).
+expect: breaking

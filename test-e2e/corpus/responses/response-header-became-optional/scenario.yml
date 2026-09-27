@@ -1,0 +1,2 @@
+description: The X-Total-Count header of the 200 response of GET /pets is required in the base version. The head version makes it optional.
+expect: breaking

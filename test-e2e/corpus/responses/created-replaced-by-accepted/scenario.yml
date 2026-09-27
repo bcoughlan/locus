@@ -1,0 +1,2 @@
+description: The head version replaces the 201 response of POST /pets with a 202 response. Clients that expect 201 and the created pet fail.
+expect: breaking

@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info: {version: 1.0.0, title: Pets API}
+components:
+  parameters:
+    Limit:
+      in: query
+      name: limit
+      schema: {maximum: 100, minimum: 1, type: integer}
+      required: false
+      description: The maximum number of pets to return.
+  schemas:
+    Pet:
+      properties:
+        name: {type: string}
+        id: {format: int64, type: integer}
+      required: [id, name]
+      type: object
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items: {$ref: '#/components/schemas/Pet'}
+                type: array
+          description: A list of pets.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      summary: List all pets
+      operationId: listPets

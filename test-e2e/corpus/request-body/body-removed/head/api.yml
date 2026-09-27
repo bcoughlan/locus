@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/{petId}/adopt:
+    post:
+      operationId: adoptPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The pet was adopted.

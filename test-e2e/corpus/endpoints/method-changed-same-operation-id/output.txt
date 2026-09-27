@@ -1,0 +1,25 @@
+# The operation updatePet moves from PUT /pets/{petId} to PATCH /pets/{petId}. The operationId stays the same.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   PATCH /pets/{petId}  updatePet  [breaking]
+      Update a pet
+~     method: PUT → PATCH  [breaking: method changed]
+      Request
+        Path parameters
+          petId  integer<int64>  required
+        Body  required
+          application/json  PetUpdate
+            name  string
+      Responses
+        200  The updated pet.
+          application/json  Pet
+            id  integer<int64>  required
+            name  string  required
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

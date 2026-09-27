@@ -6,12 +6,14 @@ import { DocumentStore, externalRefFiles, parseRef, parseSpecText } from './docu
 /** A store over in-memory files. Keys are paths relative to a virtual root. */
 function memoryStore(files: Record<string, string>): DocumentStore {
     const byPath = new Map(Object.entries(files).map(([name, text]) => [resolve('/virtual', name), text]));
-    return new DocumentStore(async (path) => {
-        const text = byPath.get(path);
-        if (text === undefined) {
-            throw Object.assign(new Error('missing'), { code: 'ENOENT' });
-        }
-        return text;
+    return new DocumentStore({
+        readText: async (path) => {
+            const text = byPath.get(path);
+            if (text === undefined) {
+                throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+            }
+            return text;
+        },
     });
 }
 

@@ -1,0 +1,12 @@
+# The head version changes info.version from 1.3.0 to 1.4.0. Nothing else changes.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pet Store 1.4.0
+~   version: 1.3.0 → 1.4.0
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

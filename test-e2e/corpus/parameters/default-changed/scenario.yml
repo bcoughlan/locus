@@ -1,0 +1,2 @@
+description: The default of the optional query parameter limit changes from 20 to 50. Clients that omit limit now get a different result.
+expect: breaking

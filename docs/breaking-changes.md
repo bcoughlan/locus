@@ -150,8 +150,15 @@ A `readOnly` property does not occur in requests, and a `writeOnly` property doe
 | Security alternative added | Compatible |
 | OAuth scope added to a requirement | Breaking |
 | OAuth scope removed from a requirement | Compatible |
-| Security scheme definition changed (type, location, name, scheme, flow URLs) | Breaking |
-| Security scheme description changed | Compatible |
+| Anonymous access (`{}`) added | Compatible |
+| Anonymous access removed while other alternatives remain | Breaking |
+| Security scheme definition changed (type, location, name, scheme) | Breaking |
+| OAuth flow added | Compatible |
+| OAuth flow removed | Breaking |
+| OAuth flow URL changed, added, or removed | Breaking |
+| Security scheme description or bearer format changed | Compatible |
+
+A requirement that lists several schemes needs all of them. Thus a scheme added to a requirement shows as the old requirement removed and a new one added.
 
 ## Servers and document information
 
@@ -160,7 +167,10 @@ A `readOnly` property does not occur in requests, and a `writeOnly` property doe
 | Server URL removed | Breaking |
 | Server URL added | Compatible |
 | Title, version, or description changed | Compatible |
-| OpenAPI version changed | Compatible |
+
+An operation without its own `servers` uses the document servers. The tool compares the servers that each operation uses.
+
+The `openapi` version is not compared. The tool gives the same meaning to the same API in 3.0, 3.1, and 3.2, so a version upgrade alone shows no change.
 
 ## Webhooks and callbacks
 

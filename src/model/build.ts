@@ -9,7 +9,7 @@ import type { DocumentStore } from '../load/documents.ts';
 import type { OasVersion } from '../load/version.ts';
 import { HttpMethods } from '../oas/types.ts';
 import { asObject, getArray, getBoolean, getString, getStringArray, getText } from '../util.ts';
-import { buildSchemaNode, flatten, schemaNode, topLevel } from './schema.ts';
+import { TreeTooLarge, buildSchemaNode, flatten, schemaNode, topLevel } from './schema.ts';
 import type { BuildContext, Located, SchemaScope } from './schema.ts';
 import type { Attrs, Direction, DocumentModel, JsonValue, ViewNode } from './tree.ts';
 
@@ -39,9 +39,44 @@ const LOCATION_TITLES: Record<string, string> = {
 const IGNORED_HEADER_PARAMETERS = new Set(['accept', 'content-type', 'authorization']);
 const NORMAL: OperationScope = { request: 'request', response: 'response', defaultSecurity: undefined };
 
-/** Build the view trees of the document in `file`. The store must hold the file and its references. */
-export function buildDocument(store: DocumentStore, file: string, version: OasVersion): DocumentModel {
-    const ctx: BuildContext = { store, rootFile: file, family: version.family, warnings: new Set() };
+/** The most schema nodes that one document builds before it expands fewer `$ref` levels. */
+export const NODE_BUDGET = 200_000;
+/** `$ref` depths to try, largest first, when a document exceeds the budget. */
+const FALLBACK_DEPTHS = [8, 6, 4, 3, 2, 1, 0];
+
+/**
+ * Build the view trees of the document in `file`. The store must hold the
+ * file and its references.
+ *
+ * Each endpoint expands its schemas in full, so a large spec (such as a spec
+ * where every object links to others) can grow without bound. When a
+ * document exceeds {@link NODE_BUDGET}, it is built again with fewer nested
+ * `$ref` levels expanded, and a warning says so. Pass `maxRefDepth` to build
+ * with a known depth, for example the depth of the other side of a diff.
+ */
+export function buildDocument(store: DocumentStore, file: string, version: OasVersion, maxRefDepth?: number): DocumentModel {
+    if (maxRefDepth !== undefined) {
+        return buildWithLimits(store, file, version, maxRefDepth, Infinity);
+    }
+    for (const depth of [Infinity, ...FALLBACK_DEPTHS]) {
+        try {
+            return buildWithLimits(store, file, version, depth, depth === 0 ? Infinity : NODE_BUDGET);
+        } catch (err) {
+            if (!(err instanceof TreeTooLarge)) {
+                throw err;
+            }
+        }
+    }
+    throw new Error('unreachable: depth 0 has no budget');
+}
+
+function buildWithLimits(store: DocumentStore, file: string, version: OasVersion, maxRefDepth: number, nodeBudget: number): DocumentModel {
+    const ctx: BuildContext = { store, rootFile: file, family: version.family, warnings: new Set(), maxRefDepth, nodeBudget, nodeCount: 0 };
+    if (maxRefDepth !== Infinity) {
+        ctx.warnings.add(
+            `The document is too large to show in full. Schemas expand ${maxRefDepth} nested $ref levels. Deeper referenced schemas show by name only, and their content is not compared there.`,
+        );
+    }
     const root = asObject(store.document(file)) ?? {};
     const info = asObject(root.info) ?? {};
     const scope: OperationScope = { ...NORMAL, defaultSecurity: root.security };
@@ -52,10 +87,10 @@ export function buildDocument(store: DocumentStore, file: string, version: OasVe
         key: 'document',
         label: getText(info.title) ?? file,
         direction: 'response',
+        // The `openapi` version is not a fact here: the model gives 3.0, 3.1, and 3.2 one meaning.
         attrs: compact({
             title: getText(info.title),
             version: getText(info.version),
-            openapi: version.raw,
             description: getText(info.description),
             servers: serverUrls(root.servers),
         }),
@@ -73,6 +108,7 @@ export function buildDocument(store: DocumentStore, file: string, version: OasVe
         operations: pathItems(root.paths).flatMap(({ name, item }) => pathItemOperations(ctx, name, item, scope)),
         webhooks: pathItems(root.webhooks).flatMap(({ name, item }) => pathItemOperations(ctx, name, item, flipped)),
         warnings: [...ctx.warnings],
+        refDepth: maxRefDepth,
     };
 }
 
@@ -143,7 +179,6 @@ function securityNodes(ctx: BuildContext, requirements: unknown, direction: Dire
 function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scopes: unknown, direction: Direction): ViewNode {
     const scheme = deref(ctx, raw, ctx.rootFile);
     const s = scheme?.value ?? {};
-    const flows = asObject(s.flows);
     const attrs = compact<Attrs>({
         schemeType: getString(s.type),
         in: getString(s.in),
@@ -152,28 +187,23 @@ function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scope
         bearerFormat: getString(s.bearerFormat),
         openIdConnectUrl: getString(s.openIdConnectUrl),
         oauth2MetadataUrl: getString(s.oauth2MetadataUrl),
-        flows: flows === undefined ? undefined : flowUrls(flows),
         scopes: nonEmpty(getStringArray(scopes).sort()),
         description: getText(s.description),
         deprecated: s.deprecated === true ? true : undefined,
         unresolved: scheme === undefined ? `#/components/securitySchemes/${name}` : undefined,
     });
-    return { kind: 'securityScheme', key: name, label: name, direction, attrs, children: [] };
-}
-
-/** OAuth flows with their URLs only. The scope descriptions are documentation, so they stay out. */
-function flowUrls(flows: Record<string, unknown>): Record<string, JsonValue> {
-    const out: Record<string, JsonValue> = {};
-    for (const [name, raw] of Object.entries(flows)) {
+    // One child per OAuth flow, with its URLs. The scope descriptions are documentation, so they stay out.
+    const flows = entries(s.flows).map(([flowName, raw]): ViewNode => {
         const flow = asObject(raw) ?? {};
-        out[name] = compact({
+        const urls = compact<Attrs>({
             authorizationUrl: getString(flow.authorizationUrl),
             deviceAuthorizationUrl: getString(flow.deviceAuthorizationUrl),
             tokenUrl: getString(flow.tokenUrl),
             refreshUrl: getString(flow.refreshUrl),
-        }) as Record<string, string>;
-    }
-    return out;
+        });
+        return { kind: 'oauthFlow', key: flowName, label: flowName, direction, attrs: urls, children: [] };
+    });
+    return { kind: 'securityScheme', key: name, label: name, direction, attrs, children: flows };
 }
 
 // --- Request ----------------------------------------------------------------
@@ -298,7 +328,7 @@ function responseNodes(ctx: BuildContext, op: Loc, direction: Direction): ViewNo
             const node: ViewNode = {
                 kind: 'response',
                 key: code.toUpperCase(),
-                label: code.toUpperCase(),
+                label: code,
                 direction,
                 attrs: compact({ summary: getText(response.value.summary), description: getText(response.value.description) }),
                 children,
@@ -399,7 +429,7 @@ function deref(ctx: BuildContext, raw: unknown, file: string): Loc | undefined {
     }
     const target = ctx.store.deref(raw, file);
     if (target.unresolved !== undefined) {
-        ctx.warnings.add(`Unresolved $ref "${target.unresolved}" in ${file}${target.reason ? ` (${target.reason})` : ''}`);
+        ctx.warnings.add(`Unresolved $ref "${target.unresolved}" in ${ctx.store.display(file)}${target.reason ? ` (${target.reason})` : ''}`);
         return undefined;
     }
     const value = asObject(target.value);

@@ -1,0 +1,24 @@
+# An optional cookie parameter currency is added to GET /pets.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [changed]
+      List pets
++     Request
++       Cookie parameters
++         currency  string
++           The currency of the prices in the response.
++           Allowed values: EUR, USD
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  integer<int64>  required
+            name  string  required
+            price  number
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

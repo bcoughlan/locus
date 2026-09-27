@@ -1,0 +1,21 @@
+# The head version removes the text/csv media type from the 200 response of GET /pets. The document uses OpenAPI 3.0.3.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [breaking]
+      Request
+        Query parameters
+          limit  integer  >= 1  <= 100
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  string  required
+            name  string  required
+-         text/csv  string  [breaking: media type text/csv removed]
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

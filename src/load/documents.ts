@@ -82,9 +82,12 @@ export class DocumentStore {
     /** Resolved references by `<from file>\0<ref>`. Documents never change after loading. */
     private readonly targets = new Map<string, Target | undefined>();
     private readonly readText: ReadText;
+    /** How to name a file in messages, for example relative to the current folder. */
+    readonly display: (path: string) => string;
 
-    constructor(readText: ReadText = (path) => readFile(path, 'utf8')) {
-        this.readText = readText;
+    constructor(options: { readText?: ReadText; display?: (path: string) => string } = {}) {
+        this.readText = options.readText ?? ((path) => readFile(path, 'utf8'));
+        this.display = options.display ?? ((path) => path);
     }
 
     /** Load and cache one file. Throws {@link InputError} when the file is missing or does not parse. */
@@ -97,9 +100,9 @@ export class DocumentStore {
         try {
             text = await this.readText(file);
         } catch (err) {
-            throw new InputError(`${file}: cannot read file (${(err as NodeJS.ErrnoException).code ?? String(err)})`);
+            throw new InputError(`${this.display(file)}: cannot read file (${(err as NodeJS.ErrnoException).code ?? String(err)})`);
         }
-        const root = parseSpecText(text, file);
+        const root = parseSpecText(text, this.display(file));
         this.docs.set(file, root);
         return root;
     }

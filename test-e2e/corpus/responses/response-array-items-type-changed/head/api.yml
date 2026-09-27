@@ -1,0 +1,31 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/{petId}/photos:
+    get:
+      operationId: listPetPhotos
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The photos of the pet.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - url
+                  properties:
+                    url:
+                      type: string
+                      format: uri
+                    caption:
+                      type: string

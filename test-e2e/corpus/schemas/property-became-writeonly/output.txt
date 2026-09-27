@@ -1,0 +1,30 @@
+# The Pet schema is in the POST /pets request and the GET /pets/{petId} response. Its property microchipId becomes writeOnly, which removes it from the response.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [changed]
+      Request
+        Body  required
+          application/json  Pet
+            name  string  required
+~           microchipId  string  write-only
+~             writeOnly: (none) → true
+      Responses
+        201  The pet was created.
+
+~   GET /pets/{petId}  getPet  [breaking]
+      Request
+        Path parameters
+          petId  string  required
+      Responses
+        200  The pet.
+          application/json  Pet
+            name  string  required
+-           microchipId  string  [breaking: property removed]
+
+Endpoints: 1 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

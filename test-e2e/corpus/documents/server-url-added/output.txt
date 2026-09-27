@@ -1,0 +1,12 @@
+# The head version adds a second server URL for the EU region. The first server stays.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Shipping API 1.0.0
+~   servers: https://api.example.com/v1 → https://api.example.com/v1, https://eu.api.example.com/v1
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

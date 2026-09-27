@@ -1,0 +1,28 @@
+openapi: 3.2.0
+info:
+  title: Accounts API
+  version: 1.0.0
+paths:
+  /me:
+    get:
+      operationId: getCurrentUser
+      security:
+        - userAuth: []
+      responses:
+        '200':
+          description: The signed-in user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                    format: email
+components:
+  securitySchemes:
+    userAuth:
+      type: http
+      scheme: bearer

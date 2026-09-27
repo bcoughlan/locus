@@ -1,0 +1,2 @@
+description: The operation getPet moves from GET /pets/{petId} to GET /animals/{petId}. The operationId stays the same.
+expect: breaking

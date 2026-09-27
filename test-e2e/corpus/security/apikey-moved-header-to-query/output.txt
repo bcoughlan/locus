@@ -1,0 +1,23 @@
+# The apiKey scheme keeps the name api_key, but moves it from a header to a query parameter. Clients that send the header are rejected.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Maps API 3.0.0
+
+~   GET /geocode  geocode  [breaking]
+      Security
+~       apiKey  apiKey in query "api_key"
+~         in: header → query  [breaking: security scheme changed (in)]
+      Request
+        Query parameters
+          address  string  required
+      Responses
+        200  The coordinates of the address.
+          application/json  object
+            lat  number
+            lng  number
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

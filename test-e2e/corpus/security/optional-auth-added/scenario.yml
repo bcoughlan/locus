@@ -1,0 +1,2 @@
+description: GET /articles had no security. The head version lists an anonymous alternative ({}) next to a bearer token. Anonymous access still works, so the bearer token counts as an added alternative.
+expect: compatible

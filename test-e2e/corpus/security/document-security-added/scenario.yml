@@ -1,0 +1,2 @@
+description: The head version adds a document-level security requirement for an API key. Both endpoints had no security, so both become breaking.
+expect: breaking

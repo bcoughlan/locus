@@ -1,0 +1,2 @@
+description: GET /pets had no security. The head version requires an API key, so a client that sends no key is rejected.
+expect: breaking

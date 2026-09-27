@@ -1,0 +1,2 @@
+description: The summary and the description move from the path item /pets/{petId} to its only operation, GET, with the same text. The path-level values apply to the operation, so the meaning stays the same.
+expect: unchanged

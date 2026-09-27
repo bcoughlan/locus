@@ -1,0 +1,2 @@
+description: The folder held two APIs, pets.yml and orders.yml. The head version deletes orders.yml, so all of its endpoints are removed.
+expect: breaking

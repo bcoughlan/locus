@@ -1,0 +1,24 @@
+# An OpenAPI 3.2 QUERY operation is added to /pets. GET /pets stays the same.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
++   QUERY /pets  searchPets  [added]
++     Search pets with a filter in the request body
++     Request
++       Body  required
++         application/json  object
++           name  string
++           tag  string
++     Responses
++       200  The pets that match the filter.
++         application/json  array[Pet]
++           id  integer<int64>  required
++           name  string  required
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 1 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

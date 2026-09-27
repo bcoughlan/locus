@@ -1,0 +1,35 @@
+openapi: 3.2.0
+info:
+  title: Library API
+  version: 1.2.0
+paths:
+  /books:
+    get:
+      operationId: listBooks
+      parameters:
+        - name: author
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of books.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+components:
+  schemas:
+    Book:
+      type: object
+      required: [isbn, title]
+      properties:
+        isbn:
+          type: string
+          pattern: '^[0-9]{13}$'
+        title:
+          type: string
+        subtitle:
+          type: [string, 'null']

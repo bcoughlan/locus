@@ -1,0 +1,2 @@
+description: GET /pets required the pets:read and pets:write OAuth scopes. The head version requires only pets:read, so every token that worked before still works.
+expect: compatible

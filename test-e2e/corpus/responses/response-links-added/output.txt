@@ -1,0 +1,9 @@
+# The head version adds a link from the 201 response of POST /pets to GET /pets/{petId}. The tool does not compare links.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 2 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

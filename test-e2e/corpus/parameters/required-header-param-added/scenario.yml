@@ -1,0 +1,2 @@
+description: A required header parameter X-Tenant-Id is added to GET /pets.
+expect: breaking

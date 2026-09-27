@@ -1,0 +1,2 @@
+description: The path item /pets/{petId} has a summary and a description that apply to its operations. The operations have none of their own. The path-level description changes.
+expect: compatible

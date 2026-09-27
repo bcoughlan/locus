@@ -1,0 +1,2 @@
+description: The property tag in the POST /pets request body changes from oneOf [string, null] to type [string, 'null']. Both forms allow the same values.
+expect: unchanged

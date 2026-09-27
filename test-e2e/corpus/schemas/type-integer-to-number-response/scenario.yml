@@ -1,0 +1,2 @@
+description: The type of the property weight in the GET /pets/{petId} response widens from integer to number. This is the response twin of type-integer-to-number-request.
+expect: breaking

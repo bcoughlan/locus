@@ -1,0 +1,2 @@
+description: The 200 response of GET /pets/{petId} refers to components/responses/PetResponse. In the head version, the age property of that response changes from integer to string.
+expect: breaking

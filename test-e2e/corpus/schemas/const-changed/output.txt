@@ -1,0 +1,21 @@
+# The const value of the property apiVersion in the POST /pets request body changes from v1 to v2.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [breaking]
+      Request
+        Body  required
+          application/json  NewPet
+~           apiVersion  string  required
+              Allowed value: v2
+~             const: v1 → v2  [breaking: const changed]
+            name  string  required
+      Responses
+        201  The pet was created.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

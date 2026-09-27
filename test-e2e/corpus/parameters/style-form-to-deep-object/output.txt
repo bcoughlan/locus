@@ -1,0 +1,25 @@
+# The style of the object query parameter filter changes from form to deepObject, so the client serializes it differently.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [breaking]
+      List pets
+      Request
+        Query parameters
+~         filter  object  style: deepObject  explode: true
+~           style: (none) → deepObject  [breaking: serialization changed (style)]
+~           explode: (none) → true  [breaking: serialization changed (explode)]
+            species  string
+            color  string
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  integer<int64>  required
+            name  string  required
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

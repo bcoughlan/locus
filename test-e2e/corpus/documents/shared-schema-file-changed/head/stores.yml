@@ -1,0 +1,27 @@
+openapi: 3.1.0
+info:
+  title: Stores API
+  version: 1.0.0
+paths:
+  /stores/{storeId}:
+    get:
+      operationId: getStore
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The store.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, address]
+                properties:
+                  id:
+                    type: string
+                  address:
+                    $ref: './shared/address.yml#/Address'

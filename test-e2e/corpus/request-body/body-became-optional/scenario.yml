@@ -1,0 +1,2 @@
+description: The request body of POST /pets/search changes from required to optional.
+expect: compatible

@@ -1,0 +1,32 @@
+openapi: 3.2.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets:
+    post:
+      operationId: createPet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewPet'
+      responses:
+        '201':
+          description: The pet was created.
+components:
+  schemas:
+    NewPet:
+      type: object
+      required: [name, photoUrls]
+      properties:
+        name:
+          type: string
+        photoUrls:
+          type: array
+          minItems: 2
+          maxItems: 5
+          items:
+            type: string
+            format: uri

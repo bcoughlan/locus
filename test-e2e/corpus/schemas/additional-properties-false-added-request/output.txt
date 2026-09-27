@@ -1,0 +1,20 @@
+# The head version adds additionalProperties false to the NewPet schema in the POST /pets request body.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [breaking]
+      Request
+        Body  required
+~         application/json  NewPet  no additional properties
+~           additionalProperties: (none) → false  [breaking: additional properties no longer allowed (client sends)]
+            name  string  required
+            tag  string
+      Responses
+        201  The pet was created.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

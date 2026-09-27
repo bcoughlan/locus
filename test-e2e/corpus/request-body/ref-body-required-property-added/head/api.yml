@@ -1,0 +1,44 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets:
+    post:
+      operationId: createPet
+      requestBody:
+        $ref: '#/components/requestBodies/PetBody'
+      responses:
+        '201':
+          description: The pet was created.
+  /pets/{petId}:
+    put:
+      operationId: replacePet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/PetBody'
+      responses:
+        '204':
+          description: The pet was replaced.
+components:
+  requestBodies:
+    PetBody:
+      description: The pet to store.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, species]
+            properties:
+              name:
+                type: string
+              species:
+                type: string
+              tag:
+                type: string

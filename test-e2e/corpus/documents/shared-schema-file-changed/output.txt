@@ -1,0 +1,39 @@
+# Two APIs reference the Address schema in shared/address.yml, which has no openapi field. The head version adds a required countryCode to Address. This breaks the request body of POST /customers, and it is compatible for the GET /stores/{storeId} response.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/customers.yml  Customers API 1.0.0
+
+~   POST /customers  createCustomer  [breaking]
+      Request
+        Body  required
+          application/json  object
+            name  string  required
+            address  Address  required
+              street  string  required
+              city  string  required
+              postalCode  string
++             countryCode  string  required  pattern ^[A-Z]{2}$  [breaking: required property added]
+      Responses
+        201  The customer was created.
+
+~ head/stores.yml  Stores API 1.0.0
+
+~   GET /stores/{storeId}  getStore  [changed]
+      Request
+        Path parameters
+          storeId  string  required
+      Responses
+        200  The store.
+          application/json  object
+            id  string  required
+            address  Address  required
+              street  string  required
+              city  string  required
+              postalCode  string
++             countryCode  string  required  pattern ^[A-Z]{2}$
+
+Endpoints: 1 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

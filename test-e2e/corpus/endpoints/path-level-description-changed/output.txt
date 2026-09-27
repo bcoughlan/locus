@@ -1,0 +1,37 @@
+# The path item /pets/{petId} has a summary and a description that apply to its operations. The operations have none of their own. The path-level description changes.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/{petId}  getPet  [changed]
+      One pet
+      Read or delete one pet. The ID is the number that POST /pets returns.
+~     description changed:
+-       Read or delete one pet by its ID.
++       Read or delete one pet. The ID is the number that POST /pets returns.
+      Request
+        Path parameters
+          petId  integer<int64>  required
+      Responses
+        200  The pet.
+          application/json  Pet
+            id  integer<int64>  required
+            name  string  required
+
+~   DELETE /pets/{petId}  deletePet  [changed]
+      One pet
+      Read or delete one pet. The ID is the number that POST /pets returns.
+~     description changed:
+-       Read or delete one pet by its ID.
++       Read or delete one pet. The ID is the number that POST /pets returns.
+      Request
+        Path parameters
+          petId  integer<int64>  required
+      Responses
+        204  The pet is deleted.
+
+Endpoints: 0 changed with breaking changes, 2 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

@@ -1,0 +1,20 @@
+# The bearer scheme changes bearerFormat from JWT to opaque. The format is only a hint for documentation, and clients send the same Authorization header.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Accounts API 1.1.0
+
+~   GET /me  getCurrentUser  [changed]
+      Security
+~       bearerAuth  http bearer (opaque)
+~         bearerFormat: JWT → opaque
+      Responses
+        200  The signed-in user.
+          application/json  object
+            id  string
+            displayName  string
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

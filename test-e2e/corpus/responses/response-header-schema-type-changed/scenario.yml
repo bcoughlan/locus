@@ -1,0 +1,2 @@
+description: The head version changes the schema type of the X-Rate-Limit-Remaining response header of GET /pets from integer to string.
+expect: breaking

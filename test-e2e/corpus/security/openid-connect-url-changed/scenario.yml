@@ -1,0 +1,2 @@
+description: The openIdConnect scheme changes its openIdConnectUrl to a new identity provider. Clients that discover the provider at the old URL get tokens that the API rejects.
+expect: breaking

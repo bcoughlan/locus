@@ -1,0 +1,2 @@
+description: The head version removes the legacy server URL. Clients that call the legacy host fail.
+expect: breaking

@@ -1,0 +1,2 @@
+description: GET /reports accepted an API key. The head version also accepts a bearer token as a second alternative, so clients that send the API key keep working.
+expect: compatible

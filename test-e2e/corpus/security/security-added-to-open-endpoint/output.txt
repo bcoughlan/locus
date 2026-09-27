@@ -1,0 +1,20 @@
+# GET /pets had no security. The head version requires an API key, so a client that sends no key is rejected.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pet Store 1.0.0
+
+~   GET /pets  listPets  [breaking]
+      List all pets.
++     Security
++       apiKey  apiKey in header "X-API-Key"  [breaking: security added to an endpoint that had none]
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  integer<int64>  required
+            name  string  required
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

@@ -1,0 +1,22 @@
+# GET /orders/{orderId} required a bearer token. The head version removes all security from it, so clients that still send a token keep working.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Orders API 2.3.0
+
+~   GET /orders/{orderId}  getOrder  [changed]
+-     Security
+-       bearerAuth  http bearer
+      Request
+        Path parameters
+          orderId  string  required
+      Responses
+        200  The order.
+          application/json  object
+            id  string
+            total  number
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

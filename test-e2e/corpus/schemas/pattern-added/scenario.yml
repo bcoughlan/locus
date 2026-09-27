@@ -1,0 +1,2 @@
+description: The head version adds a pattern to the string property microchipId in the POST /pets request body.
+expect: breaking

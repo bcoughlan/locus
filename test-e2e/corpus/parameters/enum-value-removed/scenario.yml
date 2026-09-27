@@ -1,0 +1,2 @@
+description: The value pending is removed from the enum of the query parameter status. Clients that send pending get a rejected request.
+expect: breaking

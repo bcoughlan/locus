@@ -1,0 +1,2 @@
+description: The default of the property vaccinated in the POST /pets request body changes from false to true.
+expect: breaking

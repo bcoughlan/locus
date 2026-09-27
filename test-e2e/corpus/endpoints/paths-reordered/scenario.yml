@@ -1,0 +1,2 @@
+description: The head version lists the paths in reverse order and lists POST before GET in /pets. Each operation keeps its operationId, method, path, and content.
+expect: unchanged

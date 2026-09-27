@@ -1,0 +1,2 @@
+description: The Pet schema is in the POST /pets request and the GET /pets/{petId} response. Its property microchipId becomes writeOnly, which removes it from the response.
+expect: breaking

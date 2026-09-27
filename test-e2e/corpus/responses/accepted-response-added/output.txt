@@ -1,0 +1,22 @@
+# The head version adds a 202 response next to the 201 response of POST /pets. A new success status code is compatible under the rules.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [changed]
+      Request
+        Body  required
+          application/json  NewPet
+            name  string  required
+      Responses
+        201  The pet is created.
+          application/json  Pet
+            id  string  required
+            name  string  required
++       202  The request is accepted. The server creates the pet later.
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

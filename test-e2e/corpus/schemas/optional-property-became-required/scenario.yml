@@ -1,0 +1,2 @@
+description: The optional property tag of the NewPet schema in the POST /pets request body becomes required.
+expect: breaking

@@ -1,0 +1,2 @@
+description: GET /reports accepted an API key or a bearer token. The head version drops the API key alternative, so clients that send only the API key are rejected.
+expect: breaking

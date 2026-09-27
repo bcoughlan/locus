@@ -1,0 +1,23 @@
+# The maximum of the query parameter limit decreases from 100 to 50. A limit tightened on a request value is breaking.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets  listPets  [breaking]
+      List pets
+      Request
+        Query parameters
+~         limit  integer  >= 1  <= 50
+            The maximum number of pets to return.
+~           maximum: 100 → 50  [breaking: maximum decreased (client sends)]
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  integer<int64>  required
+            name  string  required
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

@@ -1,0 +1,2 @@
+description: The object property attributes in the POST /pets request body gets an additionalProperties schema of type string. Before, it allowed any values.
+expect: breaking

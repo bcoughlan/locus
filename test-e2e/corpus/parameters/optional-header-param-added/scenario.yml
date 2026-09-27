@@ -1,0 +1,2 @@
+description: An optional header parameter X-Request-Id is added to GET /pets.
+expect: compatible

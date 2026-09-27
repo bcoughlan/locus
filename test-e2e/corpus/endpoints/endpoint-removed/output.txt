@@ -1,0 +1,19 @@
+# The endpoint DELETE /pets/{petId} is removed. GET /pets stays the same.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+-   DELETE /pets/{petId}  deletePet  [breaking: endpoint removed]
+-     Delete a pet
+-     Request
+-       Path parameters
+-         petId  integer<int64>  required
+-     Responses
+-       204  The pet is deleted.
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 1 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: breaking changes found.

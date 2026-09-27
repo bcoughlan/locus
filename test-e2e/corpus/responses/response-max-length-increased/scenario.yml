@@ -1,0 +1,2 @@
+description: The head version raises the maxLength of the name property in a response from 50 to 100.
+expect: breaking

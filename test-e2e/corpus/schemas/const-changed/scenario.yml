@@ -1,0 +1,2 @@
+description: The const value of the property apiVersion in the POST /pets request body changes from v1 to v2.
+expect: breaking

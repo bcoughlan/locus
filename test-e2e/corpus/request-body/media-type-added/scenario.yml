@@ -1,0 +1,2 @@
+description: The head version adds the application/x-www-form-urlencoded media type next to application/json in the POST /pets request body.
+expect: compatible

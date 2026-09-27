@@ -1,0 +1,2 @@
+description: The operationId of GET /pets/{petId} changes from getPet to fetchPet. The method and the path stay the same.
+expect: compatible

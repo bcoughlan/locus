@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/{petId}/owner:
+    get:
+      operationId: getPetOwner
+      summary: Get the owner of a pet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The owner of the pet.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    format: email

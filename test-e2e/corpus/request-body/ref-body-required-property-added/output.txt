@@ -1,0 +1,34 @@
+# POST /pets and PUT /pets/{petId} use the request body components/requestBodies/PetBody. The head version adds a required property species to its schema.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [breaking]
+      Request
+        Body  required
+          The pet to store.
+          application/json  object
+            name  string  required
++           species  string  required  [breaking: required property added]
+            tag  string
+      Responses
+        201  The pet was created.
+
+~   PUT /pets/{petId}  replacePet  [breaking]
+      Request
+        Path parameters
+          petId  string  required
+        Body  required
+          The pet to store.
+          application/json  object
+            name  string  required
++           species  string  required  [breaking: required property added]
+            tag  string
+      Responses
+        204  The pet was replaced.
+
+Endpoints: 2 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

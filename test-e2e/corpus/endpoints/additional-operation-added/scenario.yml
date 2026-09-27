@@ -1,0 +1,2 @@
+description: An OpenAPI 3.2 COPY operation is added to /pets/{petId} with additionalOperations. GET /pets/{petId} stays the same.
+expect: compatible

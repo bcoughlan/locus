@@ -1,0 +1,22 @@
+# The property tag in the GET /pets/{petId} response changes from type string to type [string, 'null']. This is the response twin of null-allowed-request.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/{petId}  getPet  [breaking]
+      Request
+        Path parameters
+          petId  string  required
+      Responses
+        200  The pet.
+          application/json  Pet
+            id  string  required
+            name  string  required
+~           tag  string | null
+~             type: string → string | null  [breaking: null allowed (client receives)]
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

@@ -1,0 +1,2 @@
+description: POST /payments required a bearer token. The head version adds a tenant API key to the same requirement, so a client must now send both. Clients that send only the token are rejected.
+expect: breaking

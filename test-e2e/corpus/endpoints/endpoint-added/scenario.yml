@@ -1,0 +1,2 @@
+description: A new endpoint GET /pets/{petId} is added next to GET /pets.
+expect: compatible

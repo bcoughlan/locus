@@ -1,0 +1,26 @@
+# The POST /pets request body is a oneOf of Cat, Dog, and Bird. The head version removes the variant Bird.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [breaking]
+      Request
+        Body  required
+          application/json  one of
+            Cat  Cat
+              name  string  required
+              huntingSkill  string  required
+            Dog  Dog
+              name  string  required
+              packSize  integer  required
+-           Bird  Bird  [breaking: variant Bird removed (client sends)]
+-             name  string  required
+-             wingspan  number  required
+      Responses
+        201  The pet was created.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

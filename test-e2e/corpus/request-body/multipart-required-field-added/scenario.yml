@@ -1,0 +1,2 @@
+description: The multipart/form-data request body of POST /pets/{petId}/photos gets a new required field caption.
+expect: breaking

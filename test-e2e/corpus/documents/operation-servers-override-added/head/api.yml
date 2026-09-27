@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: Files API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /files:
+    get:
+      operationId: listFiles
+      responses:
+        '200':
+          description: A list of files.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    size:
+                      type: integer
+    post:
+      operationId: uploadFile
+      servers:
+        - url: https://uploads.example.com
+      requestBody:
+        required: true
+        content:
+          application/octet-stream: {}
+      responses:
+        '201':
+          description: The file was stored.

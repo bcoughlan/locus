@@ -1,0 +1,2 @@
+description: The head version removes the text/csv media type from the 200 response of GET /pets. The document uses OpenAPI 3.0.3.
+expect: breaking

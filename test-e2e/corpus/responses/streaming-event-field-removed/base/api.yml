@@ -1,0 +1,31 @@
+openapi: 3.2.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/events:
+    get:
+      operationId: watchPets
+      summary: Watch pet changes as server-sent events
+      responses:
+        '200':
+          description: A stream of pet change events.
+          content:
+            text/event-stream:
+              itemSchema:
+                type: object
+                required:
+                  - event
+                  - data
+                properties:
+                  event:
+                    type: string
+                    enum:
+                      - pet-created
+                      - pet-updated
+                  data:
+                    type: string
+                  id:
+                    type: string
+                  retry:
+                    type: integer

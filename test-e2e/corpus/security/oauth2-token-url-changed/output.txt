@@ -1,0 +1,21 @@
+# The client credentials flow of the oauth2 scheme moves its tokenUrl to another host. Clients that request tokens from the old URL fail to authenticate.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Billing API 5.0.0
+
+~   GET /invoices  listInvoices  [breaking]
+      Security
+        machineAuth  oauth2  scopes: invoices:read
+~         clientCredentials  token: https://login.example.com/oauth2/v2/token
+~           tokenUrl: https://auth.example.com/oauth/token → https://login.example.com/oauth2/v2/token  [breaking: OAuth tokenUrl changed]
+      Responses
+        200  A list of invoices.
+          application/json  array[object]
+            number  string
+            amountDue  integer
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

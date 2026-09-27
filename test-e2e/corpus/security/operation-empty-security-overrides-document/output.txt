@@ -1,0 +1,19 @@
+# The document requires an API key. The head version sets "security: []" on GET /health, which removes all security from that endpoint only.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Inventory API 3.1.0
+
+~   GET /health  getHealth  [changed]
+-     Security
+-       apiKey  apiKey in header "X-API-Key"
+      Responses
+        200  The service is up.
+          application/json  object
+            status  string
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

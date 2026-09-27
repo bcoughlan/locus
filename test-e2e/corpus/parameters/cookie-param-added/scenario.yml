@@ -1,0 +1,2 @@
+description: An optional cookie parameter currency is added to GET /pets.
+expect: compatible

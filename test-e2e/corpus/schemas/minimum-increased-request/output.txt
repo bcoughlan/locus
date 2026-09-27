@@ -1,0 +1,20 @@
+# The minimum of the property ageMonths in the POST /pets request body increases from 0 to 2.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   POST /pets  createPet  [breaking]
+      Request
+        Body  required
+          application/json  NewPet
+            name  string  required
+~           ageMonths  integer  >= 2
+~             minimum: 0 → 2  [breaking: minimum increased (client sends)]
+      Responses
+        201  The pet was created.
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

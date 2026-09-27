@@ -1,0 +1,2 @@
+description: The apiKey scheme keeps the name api_key, but moves it from a header to a query parameter. Clients that send the header are rejected.
+expect: breaking

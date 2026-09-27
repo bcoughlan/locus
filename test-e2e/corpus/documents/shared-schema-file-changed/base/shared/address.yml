@@ -1,0 +1,11 @@
+# Shared schemas for the customers and stores APIs. This file is not an OpenAPI document.
+Address:
+  type: object
+  required: [street, city]
+  properties:
+    street:
+      type: string
+    city:
+      type: string
+    postalCode:
+      type: string

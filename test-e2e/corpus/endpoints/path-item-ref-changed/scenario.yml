@@ -1,0 +1,2 @@
+description: The path /pets/{petId} is a $ref to components/pathItems/PetItem. Inside that path item, the property tag is removed from the 200 response of GET.
+expect: breaking

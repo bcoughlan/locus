@@ -1,0 +1,2 @@
+description: The property tag in the POST /pets request body changes from type string to type [string, 'null'], so clients can send null.
+expect: compatible

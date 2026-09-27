@@ -1,0 +1,14 @@
+# Shared schemas for the customers and stores APIs. This file is not an OpenAPI document.
+Address:
+  type: object
+  required: [street, city, countryCode]
+  properties:
+    street:
+      type: string
+    city:
+      type: string
+    postalCode:
+      type: string
+    countryCode:
+      type: string
+      pattern: '^[A-Z]{2}$'

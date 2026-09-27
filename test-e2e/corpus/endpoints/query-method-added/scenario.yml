@@ -1,0 +1,2 @@
+description: An OpenAPI 3.2 QUERY operation is added to /pets. GET /pets stays the same.
+expect: compatible

@@ -1,0 +1,2 @@
+description: The head version adds the value adopted to the enum of the property status in the GET /pets/{petId} response. This is the response twin of enum-value-added-request.
+expect: breaking

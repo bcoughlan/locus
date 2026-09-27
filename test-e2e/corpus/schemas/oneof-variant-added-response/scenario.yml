@@ -1,0 +1,2 @@
+description: The GET /pets/{petId} response body is a oneOf of Cat and Dog. The head version adds the variant Bird. This is the response twin of oneof-variant-added-request.
+expect: breaking

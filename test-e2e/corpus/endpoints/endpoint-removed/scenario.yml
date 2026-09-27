@@ -1,0 +1,2 @@
+description: The endpoint DELETE /pets/{petId} is removed. GET /pets stays the same.
+expect: breaking

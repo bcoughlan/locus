@@ -1,0 +1,2 @@
+description: 'The document requires an API key. The head version sets "security: []" on GET /health, which removes all security from that endpoint only.'
+expect: compatible

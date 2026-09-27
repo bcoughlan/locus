@@ -1,0 +1,27 @@
+# Both versions hold two $refs that do not resolve, one to a missing file and one to a misspelled schema name. The head version also adds an optional query parameter. The tool warns about the $refs and still compares the rest.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pet Store 1.0.0
+    warning: Unresolved $ref "./errors.yml#/Error" in head/api.yml (head/errors.yml: cannot read file (ENOENT))
+    warning: Unresolved $ref "#/components/schemas/Pett" in head/api.yml
+    warning: base: Unresolved $ref "./errors.yml#/Error" in base/api.yml (base/errors.yml: cannot read file (ENOENT))
+    warning: base: Unresolved $ref "#/components/schemas/Pett" in base/api.yml
+
+~   GET /pets  listPets  [changed]
++     Request
++       Query parameters
++         species  string
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            id  integer
+            name  string
+        default  Unexpected error.
+          application/json  unresolved $ref ./errors.yml#/Error
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.

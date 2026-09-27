@@ -1,0 +1,2 @@
+description: The head version changes info.title and info.description. The endpoints stay the same.
+expect: compatible

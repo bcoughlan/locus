@@ -1,0 +1,63 @@
+openapi: 3.1.0
+x-api-id: 7d1c2f4e-pets
+info:
+  title: Pet Store
+  version: 1.0.0
+  x-logo:
+    url: https://example.com/logo.png
+servers:
+  - url: https://api.example.com
+    x-region: us-east-1
+security:
+  - apiKey: []
+tags:
+  - name: pets
+    x-displayName: Pets
+paths:
+  x-generated-by: specgen 4.2
+  /pets/{petId}:
+    x-controller: PetController
+    get:
+      operationId: getPet
+      tags: [pets]
+      x-rate-limit:
+        requests: 100
+        window: 1m
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          x-example-values: [1, 42]
+          schema:
+            type: integer
+            x-go-type: int64
+      responses:
+        x-default-cache: private
+        '200':
+          description: The pet.
+          x-cache-ttl: 60
+          content:
+            application/json:
+              x-codegen-model: PetResponse
+              schema:
+                $ref: '#/components/schemas/Pet'
+components:
+  x-internal: false
+  schemas:
+    Pet:
+      type: object
+      required: [id]
+      x-table: pets
+      properties:
+        id:
+          type: integer
+          x-order: 1
+        name:
+          type: string
+          x-order: 2
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      x-key-prefix: pk_

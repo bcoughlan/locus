@@ -1,0 +1,2 @@
+description: The bearer scheme changes bearerFormat from JWT to opaque. The format is only a hint for documentation, and clients send the same Authorization header.
+expect: compatible

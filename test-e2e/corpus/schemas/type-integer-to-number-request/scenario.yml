@@ -1,0 +1,2 @@
+description: The type of the property weight in the POST /pets request body widens from integer to number.
+expect: compatible

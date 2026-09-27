@@ -1,0 +1,2 @@
+description: The head version adds a link from the 201 response of POST /pets to GET /pets/{petId}. The tool does not compare links.
+expect: unchanged

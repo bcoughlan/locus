@@ -1,0 +1,2 @@
+description: The head version adds an optional JSON request body to POST /pets/{petId}/adopt, which had no body.
+expect: compatible

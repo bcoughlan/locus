@@ -1,0 +1,2 @@
+description: The head version lowers the maxLength of the name property in a response from 100 to 50. The document uses OpenAPI 3.0.3.
+expect: compatible

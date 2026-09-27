@@ -1,0 +1,2 @@
+description: The head version changes the weight property of the Pet schema in a response from integer to number.
+expect: breaking

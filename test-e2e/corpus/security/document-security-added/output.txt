@@ -1,0 +1,30 @@
+# The head version adds a document-level security requirement for an API key. Both endpoints had no security, so both become breaking.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Pet Store 1.4.0
+
+~   GET /pets  listPets  [breaking]
++     Security
++       apiKey  apiKey in header "X-API-Key"  [breaking: security added to an endpoint that had none]
+      Responses
+        200  A list of pets.
+          application/json  array[Pet]
+            name  string  required
+            tag  string
+
+~   POST /pets  createPet  [breaking]
++     Security
++       apiKey  apiKey in header "X-API-Key"  [breaking: security added to an endpoint that had none]
+      Request
+        Body  required
+          application/json  Pet
+            name  string  required
+            tag  string
+      Responses
+        201  The pet was created.
+
+Endpoints: 2 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

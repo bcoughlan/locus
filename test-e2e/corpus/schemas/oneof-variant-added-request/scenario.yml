@@ -1,0 +1,2 @@
+description: The POST /pets request body is a oneOf of Cat and Dog. The head version adds the variant Bird.
+expect: compatible

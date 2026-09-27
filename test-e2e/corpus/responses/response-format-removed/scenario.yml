@@ -1,0 +1,2 @@
+description: The head version removes format date-time from the createdAt property of the Pet schema in a response.
+expect: breaking

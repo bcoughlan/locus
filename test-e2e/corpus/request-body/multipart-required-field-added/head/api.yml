@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/{petId}/photos:
+    post:
+      operationId: uploadPetPhoto
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, caption]
+              properties:
+                file:
+                  type: string
+                  contentMediaType: image/jpeg
+                caption:
+                  type: string
+                takenOn:
+                  type: string
+                  format: date
+            encoding:
+              file:
+                contentType: image/jpeg
+      responses:
+        '201':
+          description: The photo was stored.

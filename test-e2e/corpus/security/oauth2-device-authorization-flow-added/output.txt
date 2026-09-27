@@ -1,0 +1,21 @@
+# The oauth2 scheme gains the OpenAPI 3.2 deviceAuthorization flow next to its authorization code flow. The existing flow and its URLs stay the same, so clients that use it keep working. The rules say that a changed flow URL is breaking, but no existing URL changes here.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Streaming API 1.0.0
+
+~   GET /playlists  listPlaylists  [changed]
+      Security
+        userAuth  oauth2  scopes: playlists:read
+          authorizationCode  authorization: https://auth.example.com/authorize  token: https://auth.example.com/token
++         deviceAuthorization  device authorization: https://auth.example.com/device  token: https://auth.example.com/token
+      Responses
+        200  The playlists of the user.
+          application/json  array[object]
+            id  string
+            name  string
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

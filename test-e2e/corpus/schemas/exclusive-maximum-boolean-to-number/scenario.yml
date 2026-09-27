@@ -1,0 +1,2 @@
+description: The head version moves the document from OpenAPI 3.0.3 to 3.1.0 and rewrites maximum 30 with exclusiveMaximum true as exclusiveMaximum 30.
+expect: unchanged

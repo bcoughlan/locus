@@ -1,0 +1,2 @@
+description: The head version adds a required property species to the Pet schema in the GET /pets/{petId} response. This is the response twin of required-property-added.
+expect: compatible

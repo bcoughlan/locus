@@ -1,0 +1,2 @@
+description: The path parameter petId moves from the path item /pets/{petId} into each of its operations, GET and DELETE, with no change.
+expect: unchanged

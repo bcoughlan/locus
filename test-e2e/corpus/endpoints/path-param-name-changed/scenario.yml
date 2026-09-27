@@ -1,0 +1,2 @@
+description: The path /pets/{id} becomes /pets/{petId}, and the path parameter is renamed to match. The endpoint has no operationId.
+expect: compatible

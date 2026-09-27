@@ -1,0 +1,25 @@
+openapi: 3.1.0
+info:
+  title: Pet Store Platform
+  version: 2.0.0
+  description: |-
+    Manage the pets of all stores in a chain.
+    Each store has its own list of pets.
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: A list of pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string

@@ -1,0 +1,22 @@
+# The openIdConnect scheme changes its openIdConnectUrl to a new identity provider. Clients that discover the provider at the old URL get tokens that the API rejects.
+$ locus diff --no-color --source base head
+exit code: 1
+
+Comparing base → head
+
+~ head/api.yml  Projects API 2.0.0
+
+~   GET /projects  listProjects  [breaking]
+      Security
+~       oidc  openIdConnect https://id.example.com/realms/main/.well-known/openid-configuration  scopes: openid, profile
+~         openIdConnectUrl changed:  [breaking: security scheme changed (openIdConnectUrl)]
+-           https://auth.example.com/.well-known/openid-configuration
++           https://id.example.com/realms/main/.well-known/openid-configuration
+      Responses
+        200  A list of projects.
+          application/json  array[object]
+            id  string
+            name  string
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.

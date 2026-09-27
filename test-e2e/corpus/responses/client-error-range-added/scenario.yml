@@ -1,0 +1,2 @@
+description: The head version adds a 4XX range response to GET /pets.
+expect: compatible

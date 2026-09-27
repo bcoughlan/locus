@@ -1,0 +1,2 @@
+description: The head version changes the array items of the GET /pets/{petId}/photos response from URL strings to objects.
+expect: breaking

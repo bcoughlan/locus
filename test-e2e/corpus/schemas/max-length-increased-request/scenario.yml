@@ -1,0 +1,2 @@
+description: The maxLength of the property name in the POST /pets request body increases from 50 to 100.
+expect: compatible

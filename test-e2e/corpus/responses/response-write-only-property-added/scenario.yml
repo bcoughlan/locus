@@ -1,0 +1,2 @@
+description: The head version adds a writeOnly property to the Pet schema. Only a response uses Pet, and responses hide writeOnly properties.
+expect: unchanged

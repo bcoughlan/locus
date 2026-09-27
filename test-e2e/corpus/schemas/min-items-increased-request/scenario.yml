@@ -1,0 +1,2 @@
+description: The minItems of the array property photoUrls in the POST /pets request body increases from 1 to 2.
+expect: breaking

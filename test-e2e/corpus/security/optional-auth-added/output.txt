@@ -1,0 +1,21 @@
+# GET /articles had no security. The head version lists an anonymous alternative ({}) next to a bearer token. Anonymous access still works, so the bearer token counts as an added alternative.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  News API 1.0.0
+
+~   GET /articles  listArticles  [changed]
+      Anonymous callers see public articles. Signed-in callers also see articles for subscribers.
++     Security
++       none (anonymous access)
++       bearerAuth  http bearer (JWT)
+      Responses
+        200  A list of articles.
+          application/json  array[object]
+            id  string
+            headline  string
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.
