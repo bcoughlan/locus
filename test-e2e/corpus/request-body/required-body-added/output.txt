@@ -10,7 +10,7 @@ Comparing base → head
       Request
         Path parameters
           petId  string  required
-+       Body  required  [breaking: required request body added]
++       Body  required  [breaking: required request body added (client sends)]
 +         application/json  object
 +           ownerId  string  required
       Responses

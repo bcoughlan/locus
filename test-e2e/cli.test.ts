@@ -27,7 +27,7 @@ describe('exit codes', () => {
         await inTmp({ 'old/api.yml': listPets, 'new/api.yml': listPetsWithLimit }, async (dir) => {
             const result = await runLocus(['diff', '--source', 'old', 'new'], dir);
             expect(result.code).toBe(1);
-            expect(result.stdout).toContain('[breaking: required query parameter added]');
+            expect(result.stdout).toContain('[breaking: required query parameter added (client sends)]');
         });
     });
 
@@ -166,7 +166,7 @@ describe('output', () => {
         await inTmp({ 'old.yml': broken, 'new.yml': broken }, async (dir) => {
             const result = await runLocus(['diff', '--no-color', '--source', 'old.yml', 'new.yml'], dir);
             expect(result.code).toBe(0);
-            expect(result.stdout).toContain('warning: Unresolved $ref "missing.yml" in new.yml (missing.yml: cannot read file (ENOENT))');
+            expect(result.stdout).toContain('warning: Unresolved $ref "missing.yml" in new.yml (missing.yml: file not found)');
         });
     });
 

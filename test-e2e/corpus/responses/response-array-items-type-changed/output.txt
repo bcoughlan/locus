@@ -12,9 +12,8 @@ Comparing base → head
           petId  string  required
       Responses
         200  The photos of the pet.
-          application/json  array[object]
+~         application/json  array[object]
 ~           items type: string → object  [breaking: type changed]
-~           items format: uri → (none)  [breaking: format removed (client receives)]
 +           url  string<uri>  required
 +           caption  string
 

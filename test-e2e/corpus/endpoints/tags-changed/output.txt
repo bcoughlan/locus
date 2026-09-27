@@ -8,8 +8,7 @@ Comparing base → head
 
 ~   GET /pets  listPets  [changed]
       List all pets
-      Tags: pets, public
-~     tags: pets → pets, public
+~     tags: + public
       Responses
         200  A list of pets.
           application/json  array[Pet]

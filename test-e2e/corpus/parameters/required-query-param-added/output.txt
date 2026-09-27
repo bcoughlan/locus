@@ -10,7 +10,7 @@ Comparing base → head
       List pets
 +     Request
 +       Query parameters
-+         species  string  required  [breaking: required query parameter added]
++         species  string  required  [breaking: required query parameter added (client sends)]
 +           Return only pets of this species.
       Responses
         200  A list of pets.

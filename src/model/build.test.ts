@@ -92,7 +92,14 @@ describe('parameters', () => {
       responses: {}`));
         const request = find(doc.operations[0], 'request');
         expect(keys(request)).toEqual(['path', 'query', 'header', 'cookie']);
-        expect(find(request, 'query', 'limit').attrs).toEqual({ description: 'operation-level', type: ['integer'], maximum: 100 });
+        expect(find(request, 'query', 'limit').attrs).toEqual({
+            in: 'query',
+            description: 'operation-level',
+            style: 'form',
+            explode: true,
+            type: ['integer'],
+            maximum: 100,
+        });
         expect(find(request, 'header', 'x-trace').label).toBe('X-Trace');
     });
 
@@ -122,7 +129,7 @@ describe('parameters', () => {
         expect(doc.operations[0].children).toEqual([]);
     });
 
-    test('style and explode appear only when they differ from the default', async () => {
+    test('style and explode hold effective values, so explicit defaults equal omitted ones', async () => {
         const doc = await build(spec(`
   /pets:
     get:
@@ -134,8 +141,12 @@ describe('parameters', () => {
       responses: {}`));
         const query = find(doc.operations[0], 'request', 'query');
         // deepObject does not explode by default: only form does.
-        expect(query.children.map((p) => p.attrs)).toEqual([{}, { explode: false }, { style: 'deepObject' }]);
-        expect(find(doc.operations[0], 'request', 'header', 'd').attrs).toEqual({});
+        expect(query.children.map((p) => [p.attrs.style, p.attrs.explode])).toEqual([
+            ['form', true],
+            ['form', false],
+            ['deepObject', false],
+        ]);
+        expect(find(doc.operations[0], 'request', 'header', 'd').attrs).toEqual({ in: 'header', style: 'simple', explode: false });
     });
 
     test('a parameter with content takes the schema of its media type; 3.2 querystring is its own group', async () => {
@@ -148,7 +159,7 @@ describe('parameters', () => {
           content: {application/x-www-form-urlencoded: {schema: {type: object, properties: {q: {type: string}}}}}
       responses: {}`));
         const filter = find(doc.operations[0], 'request', 'querystring', 'filter');
-        expect(filter.attrs).toEqual({ contentType: 'application/x-www-form-urlencoded', type: ['object'] });
+        expect(filter.attrs).toEqual({ in: 'querystring', contentType: 'application/x-www-form-urlencoded', type: ['object'] });
         expect(keys(filter)).toEqual(['q']);
     });
 
@@ -163,7 +174,7 @@ describe('parameters', () => {
     Big: {value: 500}`,
             ),
         );
-        expect(find(doc.operations[0], 'request', 'query', 'limit').attrs).toEqual({
+        expect(find(doc.operations[0], 'request', 'query', 'limit').attrs).toMatchObject({
             examples: { small: 5, ref: 500 },
             type: ['integer'],
             default: 20,
@@ -225,7 +236,7 @@ describe('request bodies and responses', () => {
         const ok = find(responses, '200');
         expect(ok.attrs).toEqual({ description: 'OK' });
         expect(keys(find(ok, 'headers'))).toEqual(['x-rate-limit']);
-        expect(find(ok, 'headers', 'x-rate-limit').attrs).toEqual({ required: true, type: ['integer'] });
+        expect(find(ok, 'headers', 'x-rate-limit').attrs).toEqual({ in: 'header', required: true, style: 'simple', explode: false, type: ['integer'] });
         expect(keys(find(ok, 'application/json'))).toEqual(['name']);
     });
 

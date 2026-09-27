@@ -5,9 +5,9 @@ exit code: 0
 Comparing base → head
 
 ~ head/api.yml  Pet Store 1.0.0
-    warning: Unresolved $ref "./errors.yml#/Error" in head/api.yml (head/errors.yml: cannot read file (ENOENT))
+    warning: Unresolved $ref "./errors.yml#/Error" in head/api.yml (head/errors.yml: file not found)
     warning: Unresolved $ref "#/components/schemas/Pett" in head/api.yml
-    warning: base: Unresolved $ref "./errors.yml#/Error" in base/api.yml (base/errors.yml: cannot read file (ENOENT))
+    warning: base: Unresolved $ref "./errors.yml#/Error" in base/api.yml (base/errors.yml: file not found)
     warning: base: Unresolved $ref "#/components/schemas/Pett" in base/api.yml
 
 ~   GET /pets  listPets  [changed]

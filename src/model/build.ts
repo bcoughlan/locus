@@ -259,6 +259,7 @@ function parameterNode(ctx: BuildContext, param: Loc, pathNames: string[], direc
     const position = location === 'path' ? pathNames.indexOf(name) : -1;
     const key = position >= 0 ? `#${position}` : location === 'header' ? name.toLowerCase() : name;
     const own: Attrs = {
+        in: location,
         required: location === 'path' || p.required === true ? true : undefined,
         deprecated: p.deprecated === true ? true : undefined,
         description: getText(p.description),
@@ -271,18 +272,22 @@ function parameterNode(ctx: BuildContext, param: Loc, pathNames: string[], direc
     return valueNode(ctx, 'parameter', key, name, param, own, direction);
 }
 
+/** The `style` that a parameter or header of this location has when it names none. */
+export function defaultStyle(location: string): string {
+    return location === 'query' || location === 'cookie' ? 'form' : 'simple';
+}
+
 /**
- * `style` and `explode` when they differ from the default of the location.
- * Explicit defaults then compare equal to omitted ones.
+ * The effective `style` and `explode`, so an explicit default compares equal
+ * to an omitted one. `explode` defaults to true for the form style only. The
+ * renderer hides the defaults. A `querystring` parameter has neither.
  */
 function serialization(p: Record<string, unknown>, location: string): Attrs {
-    const defaultStyle = location === 'query' || location === 'cookie' ? 'form' : 'simple';
-    const style = getString(p.style) ?? defaultStyle;
-    const explode = getBoolean(p.explode) ?? style === 'form';
-    return compact({
-        style: style === defaultStyle ? undefined : style,
-        explode: explode === (style === 'form') ? undefined : explode,
-    });
+    if (location === 'querystring') {
+        return {};
+    }
+    const style = getString(p.style) ?? defaultStyle(location);
+    return { style, explode: getBoolean(p.explode) ?? style === 'form' };
 }
 
 /**
@@ -340,6 +345,7 @@ function responseNodes(ctx: BuildContext, op: Loc, direction: Direction): ViewNo
 function headerNode(ctx: BuildContext, name: string, header: Loc, direction: Direction): ViewNode {
     const h = header.value;
     const own: Attrs = {
+        in: 'header',
         required: h.required === true ? true : undefined,
         deprecated: h.deprecated === true ? true : undefined,
         description: getText(h.description),

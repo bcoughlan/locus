@@ -16,15 +16,6 @@ Comparing base → head
         201  Subscribed.
       Callbacks
         onPetEvent
-+         POST {$request.header.X-Callback}  [added]
-+           Request
-+             Body  required
-+               application/json  object
-+                 id  string  required
-+                 status  string
-+           Responses
-+             204  The subscriber accepted the event.
-
 -         POST {$request.body#/callbackUrl}  [breaking: callback operation removed]
 -           Request
 -             Body  required
@@ -33,7 +24,14 @@ Comparing base → head
 -                 status  string
 -           Responses
 -             204  The subscriber accepted the event.
-
++         POST {$request.header.X-Callback}  [added]
++           Request
++             Body  required
++               application/json  object
++                 id  string  required
++                 status  string
++           Responses
++             204  The subscriber accepted the event.
 
 Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
 Result: breaking changes found.

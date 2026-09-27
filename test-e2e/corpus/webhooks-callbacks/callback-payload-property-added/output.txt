@@ -26,6 +26,5 @@ Comparing base → head
             Responses
               204  The subscriber accepted the event.
 
-
 Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
 Result: no breaking changes.

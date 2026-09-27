@@ -63,7 +63,7 @@ test('compares the working tree with origin/main, following $refs into files out
         expect(result.stdout).toContain('Comparing origin/main → working tree');
         expect(result.stdout).toContain('+ specs/orders.yml (new file)');
         expect(result.stdout).toContain('- specs/users.yml (deleted)');
-        expect(result.stdout).toMatch(/^\+ +owner {2}any {2}required {2}\[breaking: required query parameter added\]$/m);
+        expect(result.stdout).toMatch(/^\+ +owner {2}any {2}required {2}\[breaking: required query parameter added \(client sends\)\]$/m);
         expect(result.stdout).toMatch(/^\+ +age {2}integer$/m);
         expect(result.stdout).toContain('Endpoints: 1 changed with breaking changes, 0 changed compatibly, 1 added, 1 removed, 0 unchanged.');
     });

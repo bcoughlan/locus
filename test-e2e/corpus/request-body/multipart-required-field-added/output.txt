@@ -13,7 +13,7 @@ Comparing base → head
         Body  required
           multipart/form-data  object
             file  string  required  media type image/jpeg
-+           caption  string  required  [breaking: required property added]
++           caption  string  required  [breaking: required property added (client sends)]
             takenOn  string<date>
       Responses
         201  The photo was stored.

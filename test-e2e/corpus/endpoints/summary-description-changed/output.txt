@@ -7,8 +7,6 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   GET /pets  listPets  [changed]
-      List the pets in the store
-      Returns the pets in the store, sorted by name.
 ~     summary: List all pets → List the pets in the store
 ~     description: Returns all pets in the store. → Returns the pets in the store, sorted by name.
       Responses

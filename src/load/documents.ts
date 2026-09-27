@@ -102,7 +102,8 @@ export class DocumentStore {
         try {
             text = await this.readText(file);
         } catch (err) {
-            throw new InputError(`${this.display(file)}: cannot read file (${(err as NodeJS.ErrnoException).code ?? String(err)})`);
+            const code = (err as NodeJS.ErrnoException).code;
+            throw new InputError(`${this.display(file)}: ${code === 'ENOENT' ? 'file not found' : `cannot read file (${code ?? String(err)})`}`);
         }
         const root = parseSpecText(text, this.display(file));
         this.docs.set(file, root);

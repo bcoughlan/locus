@@ -14,7 +14,7 @@ Comparing base → head
         200  The pet.
 ~         application/json  Pet
             Examples: dog
-~           examples: changed dog
+~           example dog: value changed
             id  string  required
             name  string  required
             tag  string

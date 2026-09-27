@@ -22,7 +22,7 @@ Comparing base → head
         200  OK
           application/json  object
             received  boolean
-+           receiptId  string  required  [breaking: required property added]
++           receiptId  string  required  [breaking: required property added (client sends)]
 
 Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
 Result: breaking changes found.

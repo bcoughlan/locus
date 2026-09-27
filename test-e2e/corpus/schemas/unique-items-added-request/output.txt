@@ -12,7 +12,7 @@ Comparing base → head
           application/json  NewPet
             name  string  required
 ~           tags  array[string]  unique items
-~             uniqueItems: (none) → true  [breaking: items must be unique (client sends)]
+~             uniqueItems: false → true  [breaking: items must be unique (client sends)]
       Responses
         201  The pet was created.
 

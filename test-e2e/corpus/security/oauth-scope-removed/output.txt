@@ -9,7 +9,7 @@ Comparing base → head
 ~   GET /pets  listPets  [changed]
       Security
 ~       petAuth  oauth2  scopes: pets:read
-~         scopes: pets:read, pets:write → pets:read
+~         scopes: - pets:write
           implicit  authorization: https://auth.example.com/authorize
       Responses
         200  A list of pets.

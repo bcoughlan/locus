@@ -36,12 +36,12 @@ describe('matchOperations', () => {
         ]);
     });
 
-    test('removed operations keep their base position', () => {
+    test('removed operations keep their base position, before additions in the same gap', () => {
         const pairs = matchOperations([op('GET', '/a'), op('GET', '/b'), op('GET', '/c')], [op('GET', '/a'), op('GET', '/new'), op('GET', '/c')]);
         expect(keysOf(pairs)).toEqual([
             ['GET /a', 'GET /a'],
-            [undefined, 'GET /new'],
             ['GET /b', undefined],
+            [undefined, 'GET /new'],
             ['GET /c', 'GET /c'],
         ]);
     });
@@ -87,7 +87,7 @@ describe('diffDocument', () => {
     test('an added subtree is classified at its root; descendants inherit the severity only', async () => {
         const result = await diff(pets(), pets('', 'name: {type: string}\n                  owner: {type: object, properties: {email: {type: string}}}'));
         const owner = find(result.operations[0], 'responses', '200', 'application/json', 'owner');
-        expect(owner).toMatchObject({ status: 'added', verdict: { severity: 'compatible', reason: 'property added' } });
+        expect(owner).toMatchObject({ status: 'added', verdict: { severity: 'compatible', reason: 'optional property added (client receives)' } });
         expect(find(owner, 'email')).toMatchObject({ status: 'added', verdict: { severity: 'compatible' }, impact: 'compatible' });
         expect(find(owner, 'email').verdict?.reason).toBeUndefined();
     });
@@ -100,8 +100,8 @@ describe('diffDocument', () => {
         const headers = find(result.operations[0], 'request', 'header');
         expect(headers.status).toBe('added');
         expect(headers.children.map((p: DiffNode) => [p.label, p.verdict])).toEqual([
-            ['X-Req', { severity: 'breaking', reason: 'required header parameter added' }],
-            ['X-Opt', { severity: 'compatible', reason: 'optional header parameter added' }],
+            ['X-Req', { severity: 'breaking', reason: 'required header parameter added (client sends)' }],
+            ['X-Opt', { severity: 'compatible', reason: 'optional header parameter added (client sends)' }],
         ]);
         expect(headers.impact).toBe('breaking');
     });
@@ -146,7 +146,7 @@ describe('diffDocument', () => {
         const head = spec('  /pets: {get: {servers: [{url: "https://new"}], responses: {}}}', 'servers: [{url: "https://api"}]');
         const endpoint = (await diff(base, head)).operations[0];
         expect(endpoint.changes).toEqual([
-            { name: 'servers', before: ['https://api'], after: ['https://new'], severity: 'breaking', reason: 'server removed' },
+            { name: 'servers', before: ['https://api'], after: ['https://new'], severity: 'breaking', reason: 'server removed: https://api' },
         ]);
     });
 
@@ -156,8 +156,8 @@ describe('diffDocument', () => {
         const result = await diff(doc('{type: object, properties: {not: {type: string}}}'), doc('{type: object, not: {type: string}}'));
         const body = find(result.operations[0], 'responses', '200', 'application/json');
         expect(body.children.map((child) => [child.kind, child.key, child.status])).toEqual([
-            ['not', 'not', 'added'],
             ['property', 'not', 'removed'],
+            ['not', 'not', 'added'],
         ]);
     });
 

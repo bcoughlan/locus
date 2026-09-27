@@ -4,7 +4,8 @@
  * renderer and a future HTML renderer describe facts the same way.
  */
 import type { AttrChange, DiffNode } from '../diff/report.ts';
-import type { Attrs, JsonValue } from '../model/tree.ts';
+import { defaultStyle } from '../model/build.ts';
+import type { AttrName, Attrs, JsonValue } from '../model/tree.ts';
 import { canonicalJson } from '../util.ts';
 
 /** A value as short text: strings as they are, everything else as compact JSON. */
@@ -101,8 +102,11 @@ export function badges(attrs: Attrs): string[] {
     add(attrs.contentEncoding, `encoding ${attrs.contentEncoding}`);
     flag(attrs.additionalProperties === false, 'no additional properties');
     add(attrs.default, `default: ${formatValue(attrs.default)}`);
-    add(attrs.style, `style: ${attrs.style}`);
-    add(attrs.explode, `explode: ${attrs.explode}`);
+    // The model holds the effective style and explode. Show them when they differ from the defaults.
+    if (attrs.style !== undefined && attrs.in !== undefined) {
+        add(attrs.style === defaultStyle(attrs.in) ? undefined : attrs.style, `style: ${attrs.style}`);
+        add(attrs.explode === (attrs.style === 'form') ? undefined : attrs.explode, `explode: ${attrs.explode}`);
+    }
     flag(attrs.allowReserved, 'allow reserved');
     flag(attrs.allowEmptyValue, 'allow empty value');
     add(attrs.contentType, `content: ${attrs.contentType}`);
@@ -187,15 +191,42 @@ export function flowLabel(attrs: Attrs): string {
  * `optional → required`. `prefix` names the part of the node, for example `items`.
  */
 export function describeChange(change: AttrChange, prefix = ''): string {
-    const name = `${prefix}${change.name}`;
+    const name = `${prefix}${DISPLAY_NAMES[change.name] ?? change.name}`;
+    const { before, after } = change;
     if (change.name === 'required') {
-        return `${prefix}${change.before ? 'required' : 'optional'} → ${change.after ? 'required' : 'optional'}`;
+        return `${prefix}${before ? 'required' : 'optional'} → ${after ? 'required' : 'optional'}`;
     }
     if (change.name === 'examples') {
-        return `${name}: ${describeExamples(change.before, change.after)}`;
+        return `${prefix}${describeExamples(before, after)}`;
+    }
+    if (LIST_ATTRS.has(change.name) && Array.isArray(before) && Array.isArray(after)) {
+        // Only the values that changed: a long enum stays readable.
+        const added = without(after, before).map((value) => `+ ${formatValue(value, 40)}`);
+        const removed = without(before, after).map((value) => `- ${formatValue(value, 40)}`);
+        return `${name}: ${[...added, ...removed].join(', ')}`;
+    }
+    if (FLAG_ATTRS.has(change.name)) {
+        return `${name}: ${before === true} → ${after === true}`;
     }
     const separator = change.name === 'type' ? ' | ' : ', ';
-    return `${name}: ${changeValue(change.before, separator)} → ${changeValue(change.after, separator)}`;
+    return `${name}: ${changeValue(before, separator)} → ${changeValue(after, separator)}`;
+}
+
+/** Attribute names that differ from the spec's field names. */
+const DISPLAY_NAMES: Partial<Record<AttrName | 'name', string>> = {
+    parameterName: 'name',
+    schemeType: 'type',
+    contentType: 'media type',
+};
+/** Boolean facts that the model stores only when true. Absent means false. */
+const FLAG_ATTRS: ReadonlySet<AttrName | 'name'> = new Set(['deprecated', 'allowReserved', 'allowEmptyValue', 'readOnly', 'writeOnly', 'uniqueItems', 'nullable']);
+/** Lists where a change shows as the values added and removed. */
+const LIST_ATTRS: ReadonlySet<AttrName | 'name'> = new Set(['enum', 'tags', 'servers', 'scopes']);
+
+/** Items of `a` that `b` lacks, compared as JSON. */
+function without(a: unknown[], b: unknown[]): unknown[] {
+    const other = new Set(b.map(canonicalJson));
+    return a.filter((item) => !other.has(canonicalJson(item)));
 }
 
 /** An attribute value in a change line. An absent value shows as `(none)`. */
@@ -209,15 +240,16 @@ function changeValue(value: unknown, separator: string): string {
     return formatValue(value, 60);
 }
 
-/** Which named examples were added, removed, or changed. */
+/** Which named examples were added, removed, or changed, for example `example dog: value changed`. */
 function describeExamples(before: unknown, after: unknown): string {
     const b = (before ?? {}) as Record<string, JsonValue>;
     const a = (after ?? {}) as Record<string, JsonValue>;
-    const names = (filter: (name: string) => boolean, list: Record<string, JsonValue>) => Object.keys(list).filter(filter);
     const parts = [
-        ['added', names((name) => !(name in b), a)],
-        ['removed', names((name) => !(name in a), b)],
-        ['changed', names((name) => name in b && canonicalJson(a[name]) !== canonicalJson(b[name]), a)],
-    ] as const;
-    return parts.flatMap(([verb, list]) => (list.length === 0 ? [] : [`${verb} ${list.join(', ')}`])).join('; ');
+        ...Object.keys(a).filter((name) => !(name in b)).map((name) => `example ${name} added`),
+        ...Object.keys(b).filter((name) => !(name in a)).map((name) => `example ${name} removed`),
+        ...Object.keys(a)
+            .filter((name) => name in b && canonicalJson(a[name]) !== canonicalJson(b[name]))
+            .map((name) => `example ${name}: value changed`),
+    ];
+    return parts.join('; ');
 }

@@ -13,7 +13,7 @@ import { STRUCTURAL_KINDS } from '../model/tree.ts';
 import { canonicalJson } from '../util.ts';
 import { endpointOutcome, maxSeverity } from './report.ts';
 import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, EndpointCounts, Severity } from './report.ts';
-import { SET_ATTRS, classifyAdded, classifyAttr, classifyRemoved, normalizePath } from './rules.ts';
+import { SET_ATTRS, TYPE_SPECIFIC_ATTRS, classifyAdded, classifyAttr, classifyRemoved, isUnrelatedTypeChange, normalizePath } from './rules.ts';
 import type { Parents } from './rules.ts';
 
 type Pair = [base: ViewNode | undefined, head: ViewNode | undefined];
@@ -138,11 +138,13 @@ function diffAttrs(base: ViewNode, head: ViewNode): AttrChange[] {
     if (base.label !== head.label && head.kind === 'parameter' && head.key.startsWith('#')) {
         changes.push({ name: 'name', before: base.label, after: head.label, severity: 'compatible', reason: 'renamed' });
     }
+    // After a change to an unrelated type (string to object), the old format or length limit says nothing new.
+    const skip = isUnrelatedTypeChange(base.attrs.type, head.attrs.type) ? TYPE_SPECIFIC_ATTRS : new Set<AttrName>();
     const names = new Set([...Object.keys(head.attrs), ...Object.keys(base.attrs)] as AttrName[]);
     for (const name of names) {
         const before = base.attrs[name];
         const after = head.attrs[name];
-        if (!attrEqual(name, before, after)) {
+        if (!skip.has(name) && !attrEqual(name, before, after)) {
             changes.push({ name, before, after, ...classifyAttr(name, before, after, head) });
         }
     }
@@ -248,30 +250,39 @@ function matchByKey(base: ViewNode[], head: ViewNode[]): Pair[] {
 }
 
 /**
- * All pairs in head order. A base-only node goes after the node that
- * precedes it in the base order, so removals show where they were.
+ * All pairs in head order. A base-only node goes where it was in the base
+ * order. Within one gap between matched nodes, removals come before
+ * additions, so `- 201` prints before `+ 202`.
  */
 function orderPairs(base: ViewNode[], head: ViewNode[], matches: Map<ViewNode, ViewNode>): Pair[] {
     const baseIndex = new Map(base.map((node, i) => [node, i]));
     const matchedBase = new Set(matches.values());
+    // For each head node: the base position of the next matched node, which closes its gap.
+    const gapEnd: number[] = [];
+    for (let i = head.length - 1, end = base.length; i >= 0; i--) {
+        const match = matches.get(head[i]);
+        end = match === undefined ? end : baseIndex.get(match)!;
+        gapEnd[i] = end;
+    }
     const pairs: Pair[] = [];
     let next = 0; // First base position not yet placed.
-    const placeRemovedBefore = (limit: number) => {
-        for (; next < limit; next++) {
+    head.forEach((node, i) => {
+        for (; next < gapEnd[i]; next++) {
             if (!matchedBase.has(base[next])) {
                 pairs.push([base[next], undefined]);
             }
         }
-    };
-    for (const node of head) {
         const match = matches.get(node);
         if (match !== undefined) {
-            placeRemovedBefore(baseIndex.get(match)!);
             next = Math.max(next, baseIndex.get(match)! + 1);
         }
         pairs.push([match, node]);
+    });
+    for (; next < base.length; next++) {
+        if (!matchedBase.has(base[next])) {
+            pairs.push([base[next], undefined]);
+        }
     }
-    placeRemovedBefore(base.length);
     return pairs;
 }
 

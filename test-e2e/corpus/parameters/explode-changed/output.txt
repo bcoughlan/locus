@@ -12,7 +12,7 @@ Comparing base → head
         Query parameters
 ~         tags  array[string]  explode: false
             Return only pets with all of these tags.
-~           explode: (none) → false  [breaking: serialization changed (explode)]
+~           explode: true → false  [breaking: serialization changed (explode)]
       Responses
         200  A list of pets.
           application/json  array[Pet]

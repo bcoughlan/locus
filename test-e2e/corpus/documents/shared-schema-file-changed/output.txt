@@ -15,7 +15,7 @@ Comparing base → head
               street  string  required
               city  string  required
               postalCode  string
-+             countryCode  string  required  pattern ^[A-Z]{2}$  [breaking: required property added]
++             countryCode  string  required  pattern ^[A-Z]{2}$  [breaking: required property added (client sends)]
       Responses
         201  The customer was created.
 

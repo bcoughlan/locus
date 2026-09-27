@@ -11,7 +11,7 @@ Comparing base → head
         Body  required
           application/json  NewPet
             name  string  required
-+           species  string  required  [breaking: required property added]
++           species  string  required  [breaking: required property added (client sends)]
             tag  string
       Responses
         201  The pet was created.

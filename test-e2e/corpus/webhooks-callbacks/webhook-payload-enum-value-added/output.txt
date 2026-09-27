@@ -18,7 +18,7 @@ Comparing base → head
             name  string  required
 ~           kind  string
               Allowed values: created, updated, deleted
-~             enum: created, updated → created, updated, deleted  [breaking: enum value added: deleted (client receives)]
+~             enum: + deleted  [breaking: enum value added: deleted (client receives)]
       Responses
         200  The consumer received the event.
 

@@ -334,8 +334,11 @@ export function schemaNode(
             (attrs as Record<string, unknown>)[name] = value;
         }
     }
-    const children = flat.recursive === undefined && flat.truncated === undefined ? schemaChildren(flat, scope, ctx) : [];
-    return { kind, key, label, direction: scope.direction, attrs, children };
+    const node: ViewNode = { kind, key, label, direction: scope.direction, attrs, children: [] };
+    if (flat.recursive === undefined && flat.truncated === undefined) {
+        schemaChildren(node, flat, scope, ctx);
+    }
+    return node;
 }
 
 /** Build a node for located schemas in one step. */
@@ -351,18 +354,21 @@ export function buildSchemaNode(
     return schemaNode(kind, key, label, flatten(locs, ctx), scope, ctx, ownAttrs);
 }
 
-function schemaChildren(flat: FlatSchema, scope: SchemaScope, ctx: BuildContext): ViewNode[] {
+/** Add the child nodes of a schema (properties, items, variants) to `node`. */
+function schemaChildren(node: ViewNode, flat: FlatSchema, scope: SchemaScope, ctx: BuildContext): void {
     if (scope.depth >= MAX_DEPTH) {
         ctx.warnings.add(`A schema nests deeper than ${MAX_DEPTH} levels. The deeper levels are not shown.`);
-        return [];
+        return;
     }
     const inner: SchemaScope = { direction: scope.direction, depth: scope.depth + 1 };
-    const children: ViewNode[] = [];
+    const children = node.children;
 
+    // A readOnly property does not occur in requests, and a writeOnly property does not occur in responses.
+    const hidden = scope.direction === 'request' ? 'readOnly' : 'writeOnly';
     for (const [name, locs] of flat.properties) {
         const prop = flatten(locs, ctx);
-        // A readOnly property does not occur in requests, and a writeOnly property does not occur in responses.
-        if (prop.keywords[scope.direction === 'request' ? 'readOnly' : 'writeOnly'] === true) {
+        if (prop.keywords[hidden] === true) {
+            node.omitted = { ...node.omitted, [name]: hidden };
             continue;
         }
         const own: Attrs = flat.required.has(name) ? { required: true } : {};
@@ -386,7 +392,6 @@ function schemaChildren(flat: FlatSchema, scope: SchemaScope, ctx: BuildContext)
     if (flat.not.length > 0) {
         children.push(buildSchemaNode('not', 'not', 'not', flat.not, inner, ctx));
     }
-    return children;
 }
 
 /**

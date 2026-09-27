@@ -8,10 +8,10 @@ Comparing base → head
 
 ~   POST /payments  createPayment  [breaking]
       Security
+-       bearerAuth  http bearer  [breaking: security alternative removed]
 +       bearerAuth + tenantKey
 +         bearerAuth  http bearer
 +         tenantKey  apiKey in header "X-Tenant-Key"
--       bearerAuth  http bearer  [breaking: security alternative removed]
       Request
         Body  required
           application/json  object

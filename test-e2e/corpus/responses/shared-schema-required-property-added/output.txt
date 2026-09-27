@@ -12,7 +12,7 @@ Comparing base → head
           application/json  Pet
             name  string  required
             tag  string
-+           species  string  required  [breaking: required property added]
++           species  string  required  [breaking: required property added (client sends)]
       Responses
         201  The pet is created.
           application/json  Pet

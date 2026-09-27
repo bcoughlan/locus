@@ -8,7 +8,7 @@ Comparing base → head
 
     Webhooks
 
--   POST newPet  newPetEvent  [breaking: endpoint removed]
+-   POST newPet  newPetEvent  [breaking: webhook removed]
 -     A pet was added.
 -     Request
 -       Body  required

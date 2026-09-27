@@ -9,7 +9,6 @@ Comparing base → head
 ~   GET /items/{sku}  getItem  [changed]
       Security
 ~       apiKey  apiKey in header "X-API-Key"
-          A key from the developer portal. Each key belongs to one team.
 ~         description changed:
 -           A key from the developer portal.
 +           A key from the developer portal. Each key belongs to one team.

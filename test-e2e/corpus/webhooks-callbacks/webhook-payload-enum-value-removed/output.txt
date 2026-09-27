@@ -18,7 +18,7 @@ Comparing base → head
             name  string  required
 ~           kind  string
               Allowed values: created
-~             enum: created, updated → created
+~             enum: - updated
       Responses
         200  The consumer received the event.
 

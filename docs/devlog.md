@@ -41,3 +41,55 @@ Reflection:
 - Next time, I define the cross-cutting pieces first: the error type, the reference parser, and the exit codes. Each late fix touched several modules.
 - The first shim leaked a 3.0 keyword (`nullable`) into the version-independent model. The shim now rewrites it to a `{type: "null"}` alternative, and the model already handles that form. Rule: 3.0 knowledge stays in `shim30.ts`.
 - Decision: tweak, no re-implementation. The pipeline split held up.
+
+## M3 Model
+
+Result: each document becomes one view tree per operation. `allOf` merges into one schema, `$ref` cycles stop with a marker, and 3.0, 3.1, and 3.2 give the same tree for the same meaning.
+
+What the review found:
+
+- The recursion check was too wide. It used one set of "enclosing" references for a whole subtree, so a property that reused a schema of its parent's `allOf` showed as recursive and lost its fields. I replaced the set with provenance: each nested schema carries the references whose content holds it. The check is now exact and still ends on every cycle.
+- `null` disappeared from schemas without a known type, for example a nullable `oneOf`. A new `nullable` fact covers that case.
+- Some spec features dropped without a trace: boolean schemas, `unevaluatedProperties: false`, the 3.2 `defaultMapping`, the description next to a Reference Object, and `x-*` keys under `paths`.
+
+Reflection:
+
+- The recursion bug was a design error, not a slip. Next time, I write down the invariant ("a cycle is a reference to a schema whose content holds this one") before the code, and I test the reuse case, not only the cycle case.
+- Decision: re-implemented the recursion part of `schema.ts`. The rest stayed.
+
+## M4 Diff
+
+Result: operations match by `operationId`, then by method and path. Nodes match by kind and key. A rules table classifies each change, and a subtree that is added or removed gets one verdict at its root.
+
+What the review found:
+
+- Several rules had the wrong direction or ignored context: `additionalProperties: false` turning into a schema, optional authentication (`{}`), changes inside `not` (which reverses every rule), a rename of a recursive schema, and operation servers that inherit from the document.
+- Matching by key alone paired a property named `not` with a `not` schema.
+
+Reflection:
+
+- The generic tree diff held up well: most fixes were one rule or one matching detail. The rules need context (the parent on both sides), so next time I pass it from the start.
+- Decision: tweak, no re-implementation.
+
+## M5 CLI and M6 Git
+
+Result: `locus diff` works in folder mode and in git mode. The output reads like API documentation with diff markers. Exit codes are 0, 1, and 2.
+
+What the review found:
+
+- An empty base (for example `--source 'old/*.yaml'` for `.yml` files) reported every head file as new and exited 0. CI then passed without a comparison. An empty side is now an input error in folder mode.
+- The renderer always wrote truecolor codes, and it hid `explode: false` and `default: false`.
+- A non-OpenAPI YAML file in a folder (a Helm template) stopped the whole diff.
+
+What the corpus and the Stripe spec found:
+
+- The Stripe spec (8 MB) ran out of memory: each endpoint expands its schemas in full, and Stripe's objects link to each other. Each document now has a node budget. Over the budget, it expands fewer nested `$ref` levels and says so. Both sides use the same depth. Stripe now takes about 15 seconds.
+- A version upgrade (3.0 to 3.1) showed as a change. The `openapi` field is no longer a compared fact.
+- A whole-object comparison of OAuth flows marked an added flow as breaking. Flows are now child nodes.
+- Path matching ignored the text inside `{...}`, which also hid a changed callback expression.
+
+Reflection:
+
+- Next time, I test with a large real-world spec in the first model milestone. Full expansion is the core of the display, and its cost showed up late.
+- A PowerShell bulk replace corrupted three files. I restored them from git. From then on, I edited only with the Edit tool.
+- Decision: tweak, no re-implementation.

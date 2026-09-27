@@ -9,7 +9,7 @@ Comparing base → head
 ~   DELETE /pets/{petId}  deletePet  [breaking]
       Security
 ~       petAuth  oauth2  scopes: pets:admin, pets:write
-~         scopes: pets:write → pets:admin, pets:write  [breaking: scope added]
+~         scopes: + pets:admin  [breaking: scope added: pets:admin]
           authorizationCode  authorization: https://auth.example.com/authorize  token: https://auth.example.com/token
       Request
         Path parameters

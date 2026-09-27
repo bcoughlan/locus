@@ -11,8 +11,7 @@ Comparing base → head
       Request
         Query parameters
 ~         filter  object  style: deepObject  explode: true
-~           style: (none) → deepObject  [breaking: serialization changed (style)]
-~           explode: (none) → true  [breaking: serialization changed (explode)]
+~           style: form → deepObject  [breaking: serialization changed (style)]
             species  string
             color  string
       Responses

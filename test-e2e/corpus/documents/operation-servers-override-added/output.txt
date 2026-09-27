@@ -7,8 +7,7 @@ Comparing base → head
 ~ head/api.yml  Files API 1.0.0
 
 ~   POST /files  uploadFile  [breaking]
-      Servers: https://uploads.example.com
-~     servers: https://api.example.com → https://uploads.example.com  [breaking: server removed]
+~     servers: + https://uploads.example.com, - https://api.example.com  [breaking: server removed: https://api.example.com]
       Request
         Body  required
           application/octet-stream  any

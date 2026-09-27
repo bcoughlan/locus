@@ -9,7 +9,7 @@ Comparing base → head
 ~   GET /forecasts/{city}  getForecast  [breaking]
       Security
 ~       apiKey  apiKey in header "X-Api-Token"
-~         parameterName: X-API-Key → X-Api-Token  [breaking: security scheme changed (parameterName)]
+~         name: X-API-Key → X-Api-Token  [breaking: security scheme changed (parameterName)]
       Request
         Path parameters
           city  string  required

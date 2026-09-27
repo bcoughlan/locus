@@ -12,11 +12,11 @@ Comparing base → head
           application/json  NewPet
             name  string  required
       Responses
-+       202  The request is accepted. The server creates the pet later.
 -       201  The pet is created.  [breaking: response 201 removed]
 -         application/json  Pet
 -           id  string  required
 -           name  string  required
++       202  The request is accepted. The server creates the pet later.
 
 Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
 Result: breaking changes found.

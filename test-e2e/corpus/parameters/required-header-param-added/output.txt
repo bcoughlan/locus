@@ -10,7 +10,7 @@ Comparing base → head
       List pets
 +     Request
 +       Header parameters
-+         X-Tenant-Id  string<uuid>  required  [breaking: required header parameter added]
++         X-Tenant-Id  string<uuid>  required  [breaking: required header parameter added (client sends)]
 +           The store that owns the pets.
       Responses
         200  A list of pets.

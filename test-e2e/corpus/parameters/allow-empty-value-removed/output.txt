@@ -12,7 +12,7 @@ Comparing base → head
         Query parameters
 ~         available  boolean
             Return only pets that are for sale.
-~           allowEmptyValue: true → (none)  [breaking: empty value no longer allowed]
+~           allowEmptyValue: true → false  [breaking: empty value no longer allowed]
       Responses
         200  A list of pets.
           application/json  array[Pet]

@@ -76,7 +76,7 @@ export interface Attrs {
 
     // Security schemes
     schemeType?: string;
-    /** apiKey: where the key goes (`header`, `query`, `cookie`). */
+    /** Parameters and headers: their location. apiKey schemes: where the key goes (`header`, `query`, `cookie`). */
     in?: string;
     /** apiKey: the name of the header, query parameter, or cookie. */
     parameterName?: string;
@@ -151,6 +151,12 @@ export interface ViewNode {
     direction: Direction;
     attrs: Attrs;
     children: ViewNode[];
+    /**
+     * Properties that the schema has but this direction leaves out: readOnly
+     * ones in requests, writeOnly ones in responses. The rules use it to
+     * explain why a property disappeared.
+     */
+    omitted?: Record<string, 'readOnly' | 'writeOnly'>;
 }
 
 /** One OpenAPI document as view trees. */

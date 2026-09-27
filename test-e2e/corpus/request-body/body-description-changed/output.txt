@@ -9,7 +9,6 @@ Comparing base → head
 ~   POST /pets  createPet  [changed]
       Request
 ~       Body  required
-          The pet to add to the store. The server assigns the ID.
 ~         description: The pet to add. → The pet to add to the store. The server assigns the ID.
           application/json  NewPet
             name  string  required

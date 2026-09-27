@@ -12,7 +12,6 @@ Comparing base → head
       A pet was added.
       Request
 ~       Body  required
-          The pet that was added, with its kind.
 ~         description: A pet event. → The pet that was added, with its kind.
           application/json  object
             id  string  required

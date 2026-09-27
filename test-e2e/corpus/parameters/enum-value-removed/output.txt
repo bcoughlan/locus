@@ -13,7 +13,7 @@ Comparing base → head
 ~         status  string
             Return only pets with this status.
             Allowed values: available, sold
-~           enum: available, pending, sold → available, sold  [breaking: enum value removed: pending (client sends)]
+~           enum: - pending  [breaking: enum value removed: pending (client sends)]
       Responses
         200  A list of pets.
           application/json  array[Pet]

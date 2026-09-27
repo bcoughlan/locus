@@ -13,7 +13,7 @@ Comparing base → head
             name  string  required
 ~           size  string
               Allowed values: small, medium, large, giant
-~             enum: small, medium, large → small, medium, large, giant
+~             enum: + giant
       Responses
         201  The pet was created.
 

@@ -11,14 +11,14 @@ Comparing base → head
         Query parameters
           limit  integer  >= 1  <= 100
       Responses
-+       2XX  A list of pets.
-+         application/json  array[Pet]
-+           id  string  required
-+           name  string  required
 -       200  A list of pets.  [breaking: response 200 removed]
 -         application/json  array[Pet]
 -           id  string  required
 -           name  string  required
++       2XX  A list of pets.
++         application/json  array[Pet]
++           id  string  required
++           name  string  required
 
 Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
 Result: breaking changes found.

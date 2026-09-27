@@ -8,7 +8,7 @@ Comparing base → head
 
 ~   GET /pets/{petId}/owner  getPetOwner  deprecated  [changed]
       Get the owner of a pet
-~     deprecated: (none) → true
+~     deprecated: false → true
       Request
         Path parameters
           petId  integer<int64>  required

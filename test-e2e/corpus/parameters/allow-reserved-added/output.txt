@@ -12,7 +12,7 @@ Comparing base → head
         Query parameters
 ~         redirect  string<uri>  allow reserved
             A URL to send the client to after the request.
-~           allowReserved: (none) → true  [breaking: serialization changed (allowReserved)]
+~           allowReserved: false → true  [breaking: serialization changed (allowReserved)]
       Responses
         200  A list of pets.
           application/json  array[Pet]

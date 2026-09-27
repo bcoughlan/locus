@@ -11,6 +11,7 @@ import { Chalk } from 'chalk';
 import type { ChalkInstance, ColorSupportLevel } from 'chalk';
 import { endpointOutcome } from '../diff/report.ts';
 import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, Severity } from '../diff/report.ts';
+import type { AttrName } from '../model/tree.ts';
 import { badges, describeChange, details, flowLabel, inlineItems, schemeLabel, typeLabel } from './format.ts';
 
 /** Chalk color levels: 0 none, 1 basic 16 colors, 2 256 colors, 3 truecolor. */
@@ -95,17 +96,20 @@ class ConsoleRenderer {
         this.line(MARKERS[status], depth, parts.filter(Boolean).join('  '), tone);
 
         const inner = depth + 1;
-        this.text(a.summary, op, inner, false);
-        this.text(a.description, op, inner);
-        if (a.tags !== undefined) {
+        this.text(a.summary, op, inner, 'summary', false);
+        this.text(a.description, op, inner, 'description');
+        if (a.tags !== undefined && !changed(op, 'tags')) {
             this.detail(op, inner, this.c.dim(`Tags: ${a.tags.join(', ')}`));
         }
-        if (a.servers !== undefined) {
+        if (a.servers !== undefined && !changed(op, 'servers')) {
             this.detail(op, inner, this.c.dim(`Servers: ${a.servers.join(', ')}`));
         }
         this.changes(op.changes, inner);
         this.children(op.children, inner);
-        this.lines.push('');
+        // A blank line ends each endpoint. Operations inside a callback belong to their endpoint.
+        if (depth === 1) {
+            this.lines.push('');
+        }
     }
 
     // --- Nodes ---------------------------------------------------------------
@@ -131,7 +135,7 @@ class ConsoleRenderer {
                 break;
             case 'securityScheme':
                 this.row(node, depth, `${node.label}  ${schemeLabel(node.attrs)}`);
-                this.text(node.attrs.description, node, inner);
+                this.text(node.attrs.description, node, inner, 'description');
                 break;
             case 'oauthFlow':
                 this.row(node, depth, `${node.label}  ${this.c.dim(flowLabel(node.attrs))}`);
@@ -141,7 +145,7 @@ class ConsoleRenderer {
                 break;
             case 'requestBody':
                 this.row(node, depth, node.attrs.required ? 'Body  required' : 'Body');
-                this.text(node.attrs.description, node, inner);
+                this.text(node.attrs.description, node, inner, 'description');
                 break;
             default:
                 this.schema(node, depth);
@@ -162,7 +166,7 @@ class ConsoleRenderer {
         const [first, ...rest] = (node.attrs.summary ?? node.attrs.description ?? '').split('\n');
         this.row(node, depth, `${node.label}  ${first}`.trimEnd());
         const more = node.attrs.summary !== undefined ? node.attrs.description : rest.join('\n').trim() || undefined;
-        this.text(more, node, depth + 1);
+        this.text(more, node, depth + 1, 'description');
     }
 
     /**
@@ -175,15 +179,17 @@ class ConsoleRenderer {
         // A variant named after its schema would repeat the name: show the plain type instead.
         const shownType = node.kind === 'variant' && type === node.label ? (node.attrs.type ?? ['any']).join(' | ') : type;
         const facts = badges(node.attrs).map((fact) => (fact === 'required' ? fact : this.c.dim(fact)));
-        this.row(node, depth, [node.label, this.c.cyan(shownType), ...facts].join('  '));
+        const items = inlineItems(node);
+        // The row also stands for its inline items, so it shows their change too.
+        const shown = node.status === 'unchanged' && items?.status === 'changed' ? { ...node, status: items.status, verdict: items.verdict } : node;
+        this.row(shown, depth, [node.label, this.c.cyan(shownType), ...facts].join('  '));
 
         const inner = depth + 1;
-        this.text(node.attrs.description, node, inner);
+        this.text(node.attrs.description, node, inner, 'description');
         for (const detail of details(node.attrs)) {
             this.detail(node, inner, this.c.dim(detail));
         }
         this.changes(node.changes, inner);
-        const items = inlineItems(node);
         if (items !== undefined) {
             const itemFacts = [...badges(items.attrs), ...details(items.attrs)];
             if (itemFacts.length > 0) {
@@ -203,8 +209,14 @@ class ConsoleRenderer {
         this.line(MARKERS[node.status], depth, this.paint(tone, text + breakingTag(node.verdict)), tone);
     }
 
-    /** Free text, one line per text line. Descriptions are dim. */
-    private text(text: string | undefined, node: DiffNode, depth: number, dim = true): void {
+    /**
+     * Free text of the attribute `attr`, one line per text line. When the text
+     * changed, the change lines show it, so it does not print here too.
+     */
+    private text(text: string | undefined, node: DiffNode, depth: number, attr: AttrName, dim = true): void {
+        if (changed(node, attr)) {
+            return;
+        }
         for (const line of text?.split('\n') ?? []) {
             this.detail(node, depth, dim ? this.c.dim(line.trimEnd()) : line.trimEnd());
         }
@@ -248,6 +260,12 @@ class ConsoleRenderer {
             `${e.unchanged} unchanged`,
         ];
         this.lines.push(`Endpoints: ${parts.join(', ')}.`);
+        // Changes to document facts (servers, version) are outside the endpoint counts.
+        const documents = report.documents.filter((doc) => doc.info.impact !== undefined);
+        if (documents.length > 0) {
+            const breaking = documents.filter((doc) => doc.info.impact === 'breaking').length;
+            this.lines.push(`Document information: ${documents.length} changed${breaking > 0 ? `, ${breaking} with breaking changes` : ''}.`);
+        }
         if (!this.options.all && e.unchanged > 0) {
             this.lines.push(this.c.dim('Run with --all to show the unchanged endpoints.'));
         }
@@ -285,6 +303,11 @@ function toneOf(status: ChangeStatus, severity: Severity | undefined): Tone {
 /** The tone of a node's own line: from its own change, not from changes below it. */
 function rowTone(node: DiffNode): Tone {
     return toneOf(node.status, node.verdict?.severity);
+}
+
+/** The attribute has a change line on this node. */
+function changed(node: DiffNode, attr: AttrName): boolean {
+    return node.changes.some((change) => change.name === attr);
 }
 
 /** `  [breaking: reason]` for a breaking verdict that has a reason, else nothing. */

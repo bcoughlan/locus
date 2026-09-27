@@ -57,7 +57,7 @@ describe('parseRef', () => {
 
 describe('DocumentStore', () => {
     test('a missing root file is an input error', async () => {
-        await expect(memoryStore({}).loadWithRefs(at('api.yml'))).rejects.toThrow(/cannot read file \(ENOENT\)/);
+        await expect(memoryStore({}).loadWithRefs(at('api.yml'))).rejects.toThrow(/api\.yml: file not found/);
     });
 
     test('resolves local refs and names the target', async () => {
@@ -102,7 +102,7 @@ describe('DocumentStore', () => {
             value: undefined,
             file: at('api.yml'),
             unresolved: 'missing.yml#/X',
-            reason: `${at('missing.yml')}: cannot read file (ENOENT)`,
+            reason: `${at('missing.yml')}: file not found`,
         });
     });
 

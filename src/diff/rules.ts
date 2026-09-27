@@ -24,7 +24,7 @@ export function classifyAdded(node: ViewNode, parents: Parents = {}): Verdict {
     const parent = parents.head;
     switch (node.kind) {
         case 'operation':
-            return verdict(COMPATIBLE, parent?.kind === 'callback' ? 'callback operation added' : 'endpoint added');
+            return verdict(COMPATIBLE, `${operationNoun(node, parent)} added`);
         case 'callback':
             return verdict(COMPATIBLE, 'callback added');
         case 'securityRequirement':
@@ -38,13 +38,11 @@ export function classifyAdded(node: ViewNode, parents: Parents = {}): Verdict {
         case 'parameter':
         case 'header':
         case 'requestBody':
-        case 'property':
-            if (node.direction === 'request') {
-                return node.attrs.required
-                    ? verdict(BREAKING, `required ${noun(node, parent)} added`)
-                    : verdict(COMPATIBLE, `optional ${noun(node, parent)} added`);
-            }
-            return verdict(COMPATIBLE, `${noun(node, parent)} added`);
+        case 'property': {
+            // Only a required value that the client must now send breaks it.
+            const what = `${node.attrs.required ? 'required' : 'optional'} ${noun(node, parent)} added`;
+            return node.attrs.required ? directional(node, BREAKING, COMPATIBLE, what) : directional(node, COMPATIBLE, COMPATIBLE, what);
+        }
         case 'oauthFlow':
             return verdict(COMPATIBLE, `OAuth flow ${node.label} added`);
         case 'response':
@@ -73,7 +71,7 @@ export function classifyAdded(node: ViewNode, parents: Parents = {}): Verdict {
 export function classifyRemoved(node: ViewNode, parents: Parents = {}): Verdict {
     switch (node.kind) {
         case 'operation':
-            return verdict(BREAKING, parents.base?.kind === 'callback' ? 'callback operation removed' : 'endpoint removed');
+            return verdict(BREAKING, `${operationNoun(node, parents.base)} removed`);
         case 'callback':
             return verdict(BREAKING, 'callback removed');
         case 'securityRequirement':
@@ -81,10 +79,17 @@ export function classifyRemoved(node: ViewNode, parents: Parents = {}): Verdict 
                 return verdict(COMPATIBLE, node.key === 'none' ? 'anonymous access removed' : 'security removed');
             }
             return verdict(BREAKING, node.key === 'none' ? 'anonymous access removed' : 'security alternative removed');
+        case 'property': {
+            // A property that became readOnly (or writeOnly) is still in the schema, but not in this direction.
+            const hidden = parents.head?.omitted?.[node.key];
+            if (hidden !== undefined) {
+                return verdict(BREAKING, `property became ${hidden === 'readOnly' ? 'read-only' : 'write-only'}, so it is gone from ${node.direction === 'request' ? 'requests' : 'responses'}`);
+            }
+            return verdict(BREAKING, 'property removed');
+        }
         case 'parameter':
         case 'header':
         case 'requestBody':
-        case 'property':
             return verdict(BREAKING, `${noun(node, parents.base)} removed`);
         case 'oauthFlow':
             return verdict(BREAKING, `OAuth flow ${node.label} removed`);
@@ -136,8 +141,12 @@ export function classifyAttr(name: AttrName, before: unknown, after: unknown, no
             return normalizePath(String(before)) === normalizePath(String(after))
                 ? verdict(COMPATIBLE, 'path parameter renamed')
                 : verdict(BREAKING, 'path changed');
-        case 'servers':
-            return difference(before, after).length > 0 ? verdict(BREAKING, 'server removed') : verdict(COMPATIBLE, 'server added');
+        case 'servers': {
+            const removed = difference(before, after);
+            return removed.length > 0
+                ? verdict(BREAKING, `${plural(removed, 'server')} removed: ${list(removed)}`)
+                : verdict(COMPATIBLE, `${plural(difference(after, before), 'server')} added: ${list(difference(after, before))}`);
+        }
         case 'required':
             return after === true
                 ? directional(node, BREAKING, COMPATIBLE, `${noun(node)} became required`)
@@ -216,11 +225,43 @@ export function classifyAttr(name: AttrName, before: unknown, after: unknown, no
         case 'tokenUrl':
         case 'refreshUrl':
             return verdict(BREAKING, `OAuth ${name} changed`);
-        case 'scopes':
-            return difference(after, before).length > 0 ? verdict(BREAKING, 'scope added') : verdict(COMPATIBLE, 'scope removed');
+        case 'scopes': {
+            const added = difference(after, before);
+            return added.length > 0
+                ? verdict(BREAKING, `${plural(added, 'scope')} added: ${list(added)}`)
+                : verdict(COMPATIBLE, `${plural(difference(before, after), 'scope')} removed: ${list(difference(before, after))}`);
+        }
         default:
             return verdict(COMPATIBLE, `${name} changed`);
     }
+}
+
+/** Keywords that apply to some types only. After a change to an unrelated type, their changes add nothing. */
+export const TYPE_SPECIFIC_ATTRS: ReadonlySet<AttrName> = new Set([
+    'format',
+    'pattern',
+    'minLength',
+    'maxLength',
+    'minimum',
+    'maximum',
+    'exclusiveMinimum',
+    'exclusiveMaximum',
+    'multipleOf',
+    'minItems',
+    'maxItems',
+    'uniqueItems',
+    'minProperties',
+    'maxProperties',
+    'contentMediaType',
+    'contentEncoding',
+]);
+
+/** Neither type set covers the other, for example string to object. */
+export function isUnrelatedTypeChange(before: string[] | undefined, after: string[] | undefined): boolean {
+    if (before === undefined || after === undefined) {
+        return false;
+    }
+    return !before.every((type) => covers(after, type)) && !after.every((type) => covers(before, type));
 }
 
 /** Attributes whose array values are sets: order does not matter. */
@@ -338,6 +379,14 @@ function list(values: unknown[]): string {
 
 function plural(values: unknown[], word: string): string {
     return values.length === 1 ? word : `${word}s`;
+}
+
+/** An operation in a callback, a webhook (a top-level operation in the flipped direction), or an endpoint. */
+function operationNoun(node: ViewNode, parent: ViewNode | undefined): string {
+    if (parent?.kind === 'callback') {
+        return 'callback operation';
+    }
+    return node.direction === 'response' ? 'webhook' : 'endpoint';
 }
 
 /** What to call a node in a reason. A parameter takes its location from its group. */

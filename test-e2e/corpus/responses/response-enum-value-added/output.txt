@@ -17,7 +17,7 @@ Comparing base → head
             name  string  required
 ~           status  string
               Allowed values: available, pending, sold, adopted
-~             enum: available, pending, sold → available, pending, sold, adopted  [breaking: enum value added: adopted (client receives)]
+~             enum: + adopted  [breaking: enum value added: adopted (client receives)]
         404  No pet has this ID.
 
 Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
