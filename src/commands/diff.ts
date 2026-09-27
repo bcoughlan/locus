@@ -6,7 +6,7 @@ import { renderConsole } from '../render/console.ts';
 import type { ColorLevel } from '../render/console.ts';
 import { expandPatterns } from '../sources/files.ts';
 import type { SpecFile } from '../sources/files.ts';
-import { byDisplayPath, checkoutRef } from '../sources/git.ts';
+import { checkoutRef, keyByPath } from '../sources/git.ts';
 
 export interface DiffCommandOptions {
     /** Git ref of the base version. */
@@ -57,7 +57,7 @@ async function compareWithFolder(head: SpecFile[], patterns: string[], source: s
 async function compareWithGit(head: SpecFile[], patterns: string[], ref: string, cwd: string): Promise<Comparison> {
     const checkout = await checkoutRef(ref, patterns, cwd);
     try {
-        return await compareFiles(checkout.files, byDisplayPath(head), { baseLabel: ref, headLabel: 'working tree', cwd: { base: checkout.cwd, head: cwd } });
+        return await compareFiles(checkout.files, keyByPath(head, cwd), { baseLabel: ref, headLabel: 'working tree', cwd: { base: checkout.cwd, head: cwd } });
     } finally {
         await checkout.cleanup();
     }

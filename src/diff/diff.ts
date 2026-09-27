@@ -13,7 +13,7 @@ import { STRUCTURAL_KINDS } from '../model/tree.ts';
 import { canonicalJson } from '../util.ts';
 import { endpointOutcome, maxSeverity } from './report.ts';
 import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, EndpointCounts, Severity } from './report.ts';
-import { SET_ATTRS, TYPE_SPECIFIC_ATTRS, classifyAdded, classifyAttr, classifyRemoved, isUnrelatedTypeChange, normalizePath } from './rules.ts';
+import { SET_ATTRS, TYPE_SPECIFIC_ATTRS, classifyAdded, classifyAttr, classifyRemoved, normalizePath, typesDisjoint } from './rules.ts';
 import type { Parents } from './rules.ts';
 
 type Pair = [base: ViewNode | undefined, head: ViewNode | undefined];
@@ -138,8 +138,8 @@ function diffAttrs(base: ViewNode, head: ViewNode): AttrChange[] {
     if (base.label !== head.label && head.kind === 'parameter' && head.key.startsWith('#')) {
         changes.push({ name: 'name', before: base.label, after: head.label, severity: 'compatible', reason: 'renamed' });
     }
-    // After a change to an unrelated type (string to object), the old format or length limit says nothing new.
-    const skip = isUnrelatedTypeChange(base.attrs.type, head.attrs.type) ? TYPE_SPECIFIC_ATTRS : new Set<AttrName>();
+    // After a change to a type with nothing in common (string to object), the old format or length limit says nothing new.
+    const skip = typesDisjoint(base.attrs.type, head.attrs.type) ? TYPE_SPECIFIC_ATTRS : new Set<AttrName>();
     const names = new Set([...Object.keys(head.attrs), ...Object.keys(base.attrs)] as AttrName[]);
     for (const name of names) {
         const before = base.attrs[name];
@@ -153,8 +153,9 @@ function diffAttrs(base: ViewNode, head: ViewNode): AttrChange[] {
 
 function attrEqual(name: AttrName, a: unknown, b: unknown): boolean {
     if (SET_ATTRS.has(name) && Array.isArray(a) && Array.isArray(b)) {
-        const sorted = (list: unknown[]) => list.map(canonicalJson).sort();
-        return isDeepStrictEqual(sorted(a), sorted(b));
+        // Sets: order and repeated values do not matter.
+        const members = (list: unknown[]) => [...new Set(list.map(canonicalJson))].sort();
+        return isDeepStrictEqual(members(a), members(b));
     }
     return isDeepStrictEqual(a, b);
 }

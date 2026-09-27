@@ -7,6 +7,7 @@
  */
 import type { DocumentStore } from '../load/documents.ts';
 import type { OasVersion } from '../load/version.ts';
+import { defaultExplode, defaultStyle } from '../oas/serialization.ts';
 import { HttpMethods } from '../oas/types.ts';
 import { asObject, getArray, getBoolean, getString, getStringArray, getText } from '../util.ts';
 import { TreeTooLarge, buildSchemaNode, flatten, schemaNode, topLevel } from './schema.ts';
@@ -272,22 +273,17 @@ function parameterNode(ctx: BuildContext, param: Loc, pathNames: string[], direc
     return valueNode(ctx, 'parameter', key, name, param, own, direction);
 }
 
-/** The `style` that a parameter or header of this location has when it names none. */
-export function defaultStyle(location: string): string {
-    return location === 'query' || location === 'cookie' ? 'form' : 'simple';
-}
-
 /**
  * The effective `style` and `explode`, so an explicit default compares equal
- * to an omitted one. `explode` defaults to true for the form style only. The
- * renderer hides the defaults. A `querystring` parameter has neither.
+ * to an omitted one. The renderer hides the defaults. A `querystring`
+ * parameter has neither.
  */
 function serialization(p: Record<string, unknown>, location: string): Attrs {
     if (location === 'querystring') {
         return {};
     }
     const style = getString(p.style) ?? defaultStyle(location);
-    return { style, explode: getBoolean(p.explode) ?? style === 'form' };
+    return { style, explode: getBoolean(p.explode) ?? defaultExplode(style) };
 }
 
 /**

@@ -48,6 +48,12 @@ export function canonicalJson(value: unknown): string {
     });
 }
 
+/** Items of `a` that `b` lacks, compared as JSON values. Anything that is not an array counts as empty. */
+export function jsonDifference(a: unknown, b: unknown): unknown[] {
+    const other = new Set((Array.isArray(b) ? b : []).map(canonicalJson));
+    return (Array.isArray(a) ? a : []).filter((item) => !other.has(canonicalJson(item)));
+}
+
 /** `decode(value)`, or `value` unchanged when it is not validly encoded. */
 export function tryDecode(decode: (value: string) => string, value: string): string {
     try {

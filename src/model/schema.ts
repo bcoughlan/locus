@@ -406,8 +406,10 @@ function variantNodes(members: Located[], scope: SchemaScope, ctx: BuildContext)
     const isUnique = (value: string | undefined, all: (string | undefined)[]) =>
         value !== undefined && all.filter((v) => v === value).length === 1;
     return flats.map((flat, i) => {
-        const key = isUnique(names[i], names) ? names[i]! : isUnique(types[i], types) ? types[i]! : `#${i + 1}`;
-        return schemaNode('variant', key, key.startsWith('#') ? `option ${i + 1}` : key, flat, scope, ctx);
+        const named = isUnique(names[i], names) ? names[i] : isUnique(types[i], types) ? types[i] : undefined;
+        return named === undefined
+            ? schemaNode('variant', `#${i + 1}`, `option ${i + 1}`, flat, scope, ctx)
+            : schemaNode('variant', named, named, flat, scope, ctx);
     });
 }
 

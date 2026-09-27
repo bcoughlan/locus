@@ -7,7 +7,7 @@
  * (response) can promise more over time, but not less.
  */
 import type { AttrName, ViewNode } from '../model/tree.ts';
-import { canonicalJson } from '../util.ts';
+import { jsonDifference as difference } from '../util.ts';
 import type { Severity, Verdict } from './report.ts';
 
 const BREAKING: Severity = 'breaking';
@@ -81,7 +81,9 @@ export function classifyRemoved(node: ViewNode, parents: Parents = {}): Verdict 
             return verdict(BREAKING, node.key === 'none' ? 'anonymous access removed' : 'security alternative removed');
         case 'property': {
             // A property that became readOnly (or writeOnly) is still in the schema, but not in this direction.
-            const hidden = parents.head?.omitted?.[node.key];
+            const omitted = parents.head?.omitted;
+            // Property names are untrusted: `constructor` must not find Object.prototype.constructor.
+            const hidden = omitted !== undefined && Object.hasOwn(omitted, node.key) ? omitted[node.key] : undefined;
             if (hidden !== undefined) {
                 return verdict(BREAKING, `property became ${hidden === 'readOnly' ? 'read-only' : 'write-only'}, so it is gone from ${node.direction === 'request' ? 'requests' : 'responses'}`);
             }
@@ -256,12 +258,16 @@ export const TYPE_SPECIFIC_ATTRS: ReadonlySet<AttrName> = new Set([
     'contentEncoding',
 ]);
 
-/** Neither type set covers the other, for example string to object. */
-export function isUnrelatedTypeChange(before: string[] | undefined, after: string[] | undefined): boolean {
+/**
+ * The two type sets share no type, for example string to object. Then no
+ * type-specific keyword applies on both sides. `[string, integer]` to
+ * `[integer, object]` shares integer, so its limits still compare.
+ */
+export function typesDisjoint(before: string[] | undefined, after: string[] | undefined): boolean {
     if (before === undefined || after === undefined) {
         return false;
     }
-    return !before.every((type) => covers(after, type)) && !after.every((type) => covers(before, type));
+    return !before.some((type) => covers(after, type)) && !after.some((type) => covers(before, type));
 }
 
 /** Attributes whose array values are sets: order does not matter. */
@@ -367,11 +373,6 @@ function mappingVerdict(node: ViewNode, before: Record<string, string> = {}, aft
         : constraint(node, true, `discriminator mapping removed: ${removed.join(', ')}`);
 }
 
-/** Items of `a` that `b` lacks, compared as JSON values. */
-function difference(a: unknown, b: unknown): unknown[] {
-    const other = new Set((Array.isArray(b) ? b : []).map(canonicalJson));
-    return (Array.isArray(a) ? a : []).filter((item) => !other.has(canonicalJson(item)));
-}
 
 function list(values: unknown[]): string {
     return values.map((value) => (typeof value === 'string' ? value : JSON.stringify(value))).join(', ');

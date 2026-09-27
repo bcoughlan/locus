@@ -8,7 +8,7 @@
  * at the ref, plus every file that their `$ref`s reach.
  */
 import { execFile, spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, realpath, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, matchesGlob, posix, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { dir } from 'tmp-promise';
@@ -20,36 +20,41 @@ import type { SpecFile } from './files.ts';
 const run = promisify(execFile);
 
 export interface GitCheckout {
-    /**
-     * The spec files at the ref. Their ids and display names are paths relative
-     * to the current folder, the same as for working-tree files keyed with
-     * {@link byDisplayPath}, so both sides pair even when a pattern matches on
-     * one side only.
-     */
+    /** The spec files at the ref, keyed with {@link keyByPath} relative to {@link cwd}. */
     files: SpecFile[];
     /** The folder in the copy that stands for the current folder. */
     cwd: string;
     cleanup: () => Promise<void>;
 }
 
-/** Key files by their path relative to the current folder, as {@link GitCheckout.files} are. */
-export function byDisplayPath(files: SpecFile[]): SpecFile[] {
-    return files.map((file) => ({ ...file, id: file.display }));
+/**
+ * Key files by their path relative to `folder`. Git mode keys the working
+ * tree relative to the current folder, and the copy relative to its mirror of
+ * that folder. The same file then gets the same id on both sides, even when a
+ * pattern matches on one side only.
+ */
+export function keyByPath(files: SpecFile[], folder: string): SpecFile[] {
+    return files.map((file) => ({ ...file, id: toPosix(relative(folder, file.path)) }));
 }
 
 /** Copy the files that `patterns` (relative to `cwd`) match at `ref` into a temporary folder. */
 export async function checkoutRef(ref: string, patterns: string[], cwd: string): Promise<GitCheckout> {
     const root = (await git(['rev-parse', '--show-toplevel'], cwd)).trim();
+    // git prints the real path of the root. Use the real path of `cwd` too, so a folder behind a symlink works.
+    const realCwd = await realpath(cwd);
+    const cwdInRepo = toPosix(relative(root, realCwd));
     await verifyRef(ref, cwd);
     const tree = new Set((await git(['ls-tree', '-r', '-z', '--name-only', ref], root)).split('\0').filter(Boolean));
 
     const wanted = new Set<string>();
-    // A plain path that does not exist at the ref is a new file: leave it out of the base.
-    const existing: string[] = [];
+    // The patterns for the copy, relative to the current folder: an absolute pattern would point at the working tree.
+    // A plain path that does not exist at the ref is a new file: it drops out of the base.
+    const copyPatterns: string[] = [];
     for (const pattern of patterns) {
-        const matches = matchTree(tree, toRepoPath(pattern, cwd, root));
+        const repoPath = toRepoPath(pattern, realCwd, root);
+        const matches = matchTree(tree, repoPath);
         if (matches.length > 0 || isGlobPattern(pattern)) {
-            existing.push(pattern);
+            copyPatterns.push(posix.relative(`/${cwdInRepo}`, `/${repoPath}`) || '.');
         }
         matches.forEach((file) => wanted.add(file));
     }
@@ -57,8 +62,8 @@ export async function checkoutRef(ref: string, patterns: string[], cwd: string):
     const tmp = await dir({ prefix: 'locus-', unsafeCleanup: true });
     try {
         await copyWithRefs(ref, root, tmp.path, tree, [...wanted]);
-        const copyCwd = join(tmp.path, relative(root, cwd));
-        return { files: byDisplayPath(await expandPatterns(existing, copyCwd)), cwd: copyCwd, cleanup: tmp.cleanup };
+        const copyCwd = join(tmp.path, ...cwdInRepo.split('/'));
+        return { files: keyByPath(await expandPatterns(copyPatterns, copyCwd), copyCwd), cwd: copyCwd, cleanup: tmp.cleanup };
     } catch (err) {
         await tmp.cleanup();
         throw err;
@@ -107,21 +112,27 @@ async function readBlobs(ref: string, files: string[], root: string): Promise<Ma
         child.on('error', reject);
         child.on('close', (code) => (code === 0 ? resolveDone() : reject(new InputError(`git cat-file failed: ${Buffer.concat(errors).toString('utf8').trim()}`))));
     });
+    // If git exits early, the write fails with EPIPE. The close handler reports the failure.
+    child.stdin.on('error', () => {});
     child.stdin.end(files.map((file) => `${ref}:${file}\n`).join(''));
     await done;
 
-    // Each answer is "<oid> <type> <size>\n<content>\n", or "<name> missing\n".
+    // Each answer is "<oid> <type> <size>\n<content>\n". Any other answer ("<name> missing",
+    // "<name> ambiguous") is one line without content: that file is left out.
     const out = Buffer.concat(chunks);
     const blobs = new Map<string, Buffer>();
     let pos = 0;
     for (const file of files) {
         const end = out.indexOf(0x0a, pos);
-        const header = out.subarray(pos, end).toString('utf8');
+        if (end === -1) {
+            throw new InputError(`git cat-file gave an incomplete answer for ${file}`);
+        }
+        const header = /^[0-9a-f]+ \w+ (\d+)$/.exec(out.subarray(pos, end).toString('utf8'));
         pos = end + 1;
-        if (header.endsWith(' missing')) {
+        if (header === null) {
             continue;
         }
-        const size = Number(header.split(' ')[2]);
+        const size = Number(header[1]);
         blobs.set(file, out.subarray(pos, pos + size));
         pos += size + 1;
     }

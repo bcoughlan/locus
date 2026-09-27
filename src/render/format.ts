@@ -4,9 +4,9 @@
  * renderer and a future HTML renderer describe facts the same way.
  */
 import type { AttrChange, DiffNode } from '../diff/report.ts';
-import { defaultStyle } from '../model/build.ts';
 import type { AttrName, Attrs, JsonValue } from '../model/tree.ts';
-import { canonicalJson } from '../util.ts';
+import { defaultExplode, defaultStyle } from '../oas/serialization.ts';
+import { canonicalJson, jsonDifference } from '../util.ts';
 
 /** A value as short text: strings as they are, everything else as compact JSON. */
 export function formatValue(value: unknown, maxLength = 80): string {
@@ -105,7 +105,7 @@ export function badges(attrs: Attrs): string[] {
     // The model holds the effective style and explode. Show them when they differ from the defaults.
     if (attrs.style !== undefined && attrs.in !== undefined) {
         add(attrs.style === defaultStyle(attrs.in) ? undefined : attrs.style, `style: ${attrs.style}`);
-        add(attrs.explode === (attrs.style === 'form') ? undefined : attrs.explode, `explode: ${attrs.explode}`);
+        add(attrs.explode === defaultExplode(attrs.style) ? undefined : attrs.explode, `explode: ${attrs.explode}`);
     }
     flag(attrs.allowReserved, 'allow reserved');
     flag(attrs.allowEmptyValue, 'allow empty value');
@@ -201,8 +201,8 @@ export function describeChange(change: AttrChange, prefix = ''): string {
     }
     if (LIST_ATTRS.has(change.name) && Array.isArray(before) && Array.isArray(after)) {
         // Only the values that changed: a long enum stays readable.
-        const added = without(after, before).map((value) => `+ ${formatValue(value, 40)}`);
-        const removed = without(before, after).map((value) => `- ${formatValue(value, 40)}`);
+        const added = jsonDifference(after, before).map((value) => `+ ${formatValue(value, 40)}`);
+        const removed = jsonDifference(before, after).map((value) => `- ${formatValue(value, 40)}`);
         return `${name}: ${[...added, ...removed].join(', ')}`;
     }
     if (FLAG_ATTRS.has(change.name)) {
@@ -222,12 +222,6 @@ const DISPLAY_NAMES: Partial<Record<AttrName | 'name', string>> = {
 const FLAG_ATTRS: ReadonlySet<AttrName | 'name'> = new Set(['deprecated', 'allowReserved', 'allowEmptyValue', 'readOnly', 'writeOnly', 'uniqueItems', 'nullable']);
 /** Lists where a change shows as the values added and removed. */
 const LIST_ATTRS: ReadonlySet<AttrName | 'name'> = new Set(['enum', 'tags', 'servers', 'scopes']);
-
-/** Items of `a` that `b` lacks, compared as JSON. */
-function without(a: unknown[], b: unknown[]): unknown[] {
-    const other = new Set(b.map(canonicalJson));
-    return a.filter((item) => !other.has(canonicalJson(item)));
-}
 
 /** An attribute value in a change line. An absent value shows as `(none)`. */
 function changeValue(value: unknown, separator: string): string {
