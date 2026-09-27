@@ -178,6 +178,44 @@ describe('diffDocument', () => {
         expect(result.schemas[body.children[1].ref!].status).toBe('unchanged');
     });
 
+    test('a change inside a reference cycle reaches the cycle and every endpoint that uses it', async () => {
+        const doc = (maximum: number) =>
+            spec(
+                `  /a: {get: {responses: {'200': {content: {application/json: {schema: {$ref: '#/components/schemas/Node'}}}}}}}
+  /b: {get: {responses: {'200': {content: {application/json: {schema: {$ref: '#/components/schemas/Node'}}}}}}}`,
+                `components:
+  schemas:
+    Node:
+      type: object
+      properties:
+        next: {$ref: '#/components/schemas/Node'}
+        size: {type: integer, maximum: ${maximum}}`,
+            );
+        const result = await diff(doc(10), doc(20));
+        const node = result.schemas[find(result.operations[0], 'responses', '200', 'application/json').ref!];
+        expect(node.impact).toBe('breaking');
+        // `next` refers back to Node, whose diff was still in progress when `next` was compared.
+        expect(find(node, 'next').impact).toBe('breaking');
+        expect(result.operations.map((endpoint) => endpoint.impact)).toEqual(['breaking', 'breaking']);
+    });
+
+    test('nullable that moves from the use of a schema into the schema is no change at the use', async () => {
+        const doc = (use: string, pet: string) =>
+            spec(
+                `  /pets:\n    get:\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: {type: object, properties: {pet: ${use}}}`,
+                `components:\n  schemas:\n    Pet: ${pet}`,
+                '3.0.3',
+            );
+        const result = await diff(
+            doc('{$ref: "#/components/schemas/Pet", nullable: true}', '{type: object}'),
+            doc('{$ref: "#/components/schemas/Pet"}', '{type: object, nullable: true}'),
+        );
+        const pet = find(result.operations[0], 'responses', '200', 'application/json', 'pet');
+        expect(pet.changes).toEqual([]);
+        // Other uses of Pet now receive null, so the definition itself changed.
+        expect(result.schemas[pet.ref!].changes.map((change) => change.name)).toEqual(['type']);
+    });
+
     test('enum order does not count as a change', async () => {
         const result = await diff(pets('', 'kind: {enum: [a, b]}'), pets('', 'kind: {enum: [b, a]}'));
         expect(result.status).toBe('unchanged');

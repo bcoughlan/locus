@@ -54,6 +54,11 @@ export function jsonDifference(a: unknown, b: unknown): unknown[] {
     return (Array.isArray(a) ? a : []).filter((item) => !other.has(canonicalJson(item)));
 }
 
+/** A copy without `undefined` values, so absent facts compare equal to omitted ones. */
+export function compact<T extends object>(attrs: T): T {
+    return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== undefined)) as T;
+}
+
 /** `decode(value)`, or `value` unchanged when it is not validly encoded. */
 export function tryDecode(decode: (value: string) => string, value: string): string {
     try {

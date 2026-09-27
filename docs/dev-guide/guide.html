@@ -151,7 +151,8 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
   <li>A schema that is only a <code>$ref</code> becomes a node with a <code>ref</code>.</li>
   <li>The definition is built once per schema and direction, and stored in <code>DocumentModel.schemas</code>.</li>
   <li>A reference cycle points back to its definition. No special case is needed.</li>
-  <li>"Only a <code>$ref</code>" includes a description next to it, a one-member <code>allOf</code> around it, and a nullable form (<code>oneOf: [X, {type: null}]</code>, 3.0 <code>nullable</code>).</li>
+  <li>"Only a <code>$ref</code>" includes a description next to it, a one-member <code>allOf</code> around it, and a nullable form (<code>oneOf: [X, {type: null}]</code>, 3.0 <code>nullable</code>). 3.1 has no <code>nullable</code> keyword, so 3.1 ignores it.</li>
+  <li>A description next to a <code>$ref</code> hides the description of the definition. The renderer then does not show a change of the hidden description.</li>
   <li>Any other schema is built in place: its <code>allOf</code> members merge into one set of facts.</li>
 </ul>
 <figure><img data-diagram="sequence-schema" alt="Sequence of building a schema node"></figure>
@@ -201,6 +202,8 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
   <li><code>status</code>: added, removed, changed (own facts changed), or unchanged.</li>
   <li><code>verdict</code>: severity (breaking or compatible) and a reason.</li>
   <li><code>impact</code>: the worst change in the subtree. It rolls up to the endpoint and the document.</li>
+  <li>A subtree includes the definitions that its references point to.</li>
+  <li>In a reference cycle, a definition diff is still in progress when the cycle reaches it. So <code>settleImpacts()</code> runs after the diff and repeats until no impact changes.</li>
   <li>Exit code 1 means some document has impact "breaking".</li>
 </ul>
 
@@ -229,7 +232,15 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
   <li>Markers: <code>+</code> added, <code>-</code> removed, <code>~</code> changed. Colors repeat the markers.</li>
   <li>A breaking change carries <code>[breaking: reason]</code>, so the output works without color.</li>
   <li>A cycle prints <code>(recursive)</code>.</li>
-  <li>After 400 lines in one endpoint, a referenced schema expands only when something inside it changed, and only once. Others print as <code>(not expanded)</code> or <code>(shown above)</code>.</li>
+  <li>After 400 lines in one endpoint, the endpoint shows only the shortest paths to its changes:
+    <ul>
+      <li><code>changeDistances()</code> gives each definition the number of references to its nearest change.</li>
+      <li>A reference expands only when its definition is closer to a change than the enclosing definition.</li>
+      <li>A definition that already printed shows <code>(shown above)</code>.</li>
+      <li>Unchanged nodes print as one count line: <code>… 12 unchanged, not shown</code>.</li>
+    </ul>
+  </li>
+  <li>Why shortest paths: in a spec like Stripe, almost every schema reaches every other schema. So almost every schema has a change inside, and "expand what changed" prints almost everything.</li>
   <li><code>format.ts</code> holds the text helpers (type labels, badges, change lines). An HTML renderer can reuse them.</li>
 </ul>
 

@@ -381,6 +381,12 @@ describe('schemas', () => {
         }
     });
 
+    test('3.1 ignores a nullable keyword next to a $ref, because 3.1 has no such keyword', async () => {
+        const node = await schemaOf('{$ref: "#/components/schemas/Pet", nullable: true}', 'components:\n  schemas:\n    Pet: {type: object}');
+        expect(node.ref).toBeDefined();
+        expect(node.attrs).toEqual({ title: 'Pet', type: ['object'] });
+    });
+
     test('3.0 boolean exclusiveMaximum becomes the 3.1 number form', async () => {
         const node = await schemaOf('{type: integer, maximum: 10, exclusiveMaximum: true}', '', '3.0.3');
         expect(node.attrs).toEqual({ type: ['integer'], exclusiveMaximum: 10 });

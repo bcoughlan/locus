@@ -1,0 +1,25 @@
+# Pet has two properties that refer to User. The owner property has its own description next to the $ref, and the vet property does not. The head version changes the description of User. Only the vet property shows the change.
+$ locus diff --no-color --source base head
+exit code: 0
+
+Comparing base → head
+
+~ head/api.yml  Pets API 1.0.0
+
+~   GET /pets/{petId}  getPet  [changed]
+      Request
+        Path parameters
+          petId  string  required
+      Responses
+        200  The requested pet.
+          application/json  Pet
+            name  string
+            owner  User
+              The person who owns the pet.
+              email  string
+~           vet  User
+~             description: A user. → A registered user of the pet clinic.
+              email  string
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.

@@ -136,6 +136,31 @@ describe('output', () => {
         await snapshot({ 'old.yml': api(''), 'new.yml': api(', {name: x, in: query}') }, ['diff', '--no-color', '--source', 'old.yml', 'new.yml']);
     });
 
+    test('a large endpoint shows only the shortest paths to its changes', async () => {
+        // 400 request properties make the endpoint large before its responses print.
+        const filler = Array.from({ length: 400 }, (_, i) => `field${i}: {type: string}`).join(', ');
+        const ref = (name: string) => `{$ref: '#/components/schemas/${name}'}`;
+        const api = (address: string) =>
+            openapi(
+                `  /orders:
+    post:
+      requestBody: {content: {application/json: {schema: {type: object, properties: {${filler}}}}}}
+      responses: {'200': {description: OK, content: {application/json: {schema: ${ref('Order')}}}}}`,
+                `components:
+  schemas:
+    Order: {type: object, properties: {id: {type: string}, customer: ${ref('Customer')}, seller: ${ref('Customer')}, items: {type: array, items: ${ref('Item')}}, note: {type: string}}}
+    Customer: {type: object, properties: {name: {type: string}, address: ${ref('Address')}, orders: {type: array, items: ${ref('Order')}}}}
+    Item: {type: object, properties: {sku: {type: string}, product: ${ref('Product')}}}
+    Product: {type: object, properties: {name: {type: string}, maker: ${ref('Customer')}}}
+    Address: {type: object, properties: {${address}}}`,
+            );
+        await inTmp({ 'old.yml': api('street: {type: string}, city: {type: string}, zip: {type: string}'), 'new.yml': api('street: {type: string}, city: {type: string}') }, async (dir) => {
+            const { stdout } = await runLocus(['diff', '--no-color', '--source', 'old.yml', 'new.yml'], dir);
+            // Only the part after the filler: the path from Order to the removed zip property.
+            expect(stdout.slice(stdout.indexOf('      Responses'))).toMatchSnapshot();
+        });
+    });
+
     test('unchanged endpoints show only with --all', async () => {
         const api = (extra: string) => openapi(`  /a: {get: {responses: {}}}\n  /b: {get: {${extra}responses: {}}}`);
         const files = { 'old.yml': api(''), 'new.yml': api('description: B, ') };

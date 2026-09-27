@@ -18,7 +18,7 @@ import type { DocumentStore, Resolved } from '../load/documents.ts';
 import { appendPointer } from '../load/json-pointer.ts';
 import type { OasFamily } from '../load/version.ts';
 import { upgradeSchema30 } from '../oas/shim30.ts';
-import { asObject, getArray, getNumber, getString, getStringArray, getText } from '../util.ts';
+import { asObject, compact, getArray, getNumber, getString, getStringArray, getText } from '../util.ts';
 import { effectiveAttrs, sortTypes } from './tree.ts';
 import type { Attrs, Direction, JsonValue, NodeKind, ViewNode } from './tree.ts';
 
@@ -177,11 +177,12 @@ function asReference(loc: Located, ctx: BuildContext): Reference | undefined {
         return undefined;
     }
     if (typeof schema.$ref === 'string') {
-        // 3.0 documents often write `nullable: true` next to a `$ref`.
+        // 3.0 documents often write `nullable: true` next to a `$ref`. In 3.1, `nullable` is not a keyword.
         const rest = { ...schema };
         delete rest.$ref;
         delete rest.nullable;
-        return onlyDocs(rest) ? { raw: loc.raw, file: loc.file, docs: docAttrs(rest), nullable: schema.nullable === true } : undefined;
+        const nullable = ctx.family === '3.0' && schema.nullable === true;
+        return onlyDocs(rest) ? { raw: loc.raw, file: loc.file, docs: docAttrs(rest), nullable } : undefined;
     }
     const s = ctx.family === '3.0' ? upgradeSchema30(schema) : schema;
     const { allOf, oneOf, anyOf, ...rest } = s;
@@ -227,13 +228,13 @@ function schemaChildren(node: ViewNode, flat: FlatSchema, scope: SchemaScope, ct
     // A readOnly property does not occur in requests, and a writeOnly property does not occur in responses.
     const hidden = scope.direction === 'request' ? 'readOnly' : 'writeOnly';
     for (const [name, locs] of flat.properties) {
-        const own: Attrs = flat.required.has(name) ? { required: true } : {};
-        const property = schemaNode('property', name, name, locs, inner, ctx, own);
-        if (effectiveAttrs(property, (id) => ctx.schemas.get(id))[hidden] === true) {
+        // Checked on the merged keywords first, so a hidden property builds no definitions.
+        if (flatten(locs, ctx).keywords[hidden] === true) {
             node.omitted = { ...node.omitted, [name]: hidden };
             continue;
         }
-        children.push(property);
+        const own: Attrs = flat.required.has(name) ? { required: true } : {};
+        children.push(schemaNode('property', name, name, locs, inner, ctx, own));
     }
     for (const [pattern, locs] of flat.patternProperties) {
         children.push(schemaNode('patternProperty', `/${pattern}/`, `/${pattern}/`, locs, inner, ctx));
@@ -523,9 +524,4 @@ function appendTo<K>(map: Map<K, Located[]>, key: K, loc: Located): void {
 /** The last segment of a reference: `Cat` for `#/components/schemas/Cat`. A plain name stays as it is. */
 function refName(ref: string): string {
     return ref.slice(ref.lastIndexOf('/') + 1);
-}
-
-/** A copy without `undefined` values, so absent facts compare equal to omitted ones. */
-function compact<T extends object>(attrs: T): T {
-    return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== undefined)) as T;
 }

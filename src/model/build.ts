@@ -13,7 +13,7 @@ import { appendPointer } from '../load/json-pointer.ts';
 import type { OasVersion } from '../load/version.ts';
 import { defaultExplode, defaultStyle } from '../oas/serialization.ts';
 import { HttpMethods } from '../oas/types.ts';
-import { asObject, getArray, getBoolean, getString, getStringArray, getText } from '../util.ts';
+import { asObject, compact, getArray, getBoolean, getString, getStringArray, getText } from '../util.ts';
 import { located, schemaNode } from './schema.ts';
 import type { BuildContext, Located, SchemaScope } from './schema.ts';
 import type { Attrs, Direction, DocumentModel, JsonValue, Source, ViewNode } from './tree.ts';
@@ -441,9 +441,4 @@ function serverUrls(servers: unknown): string[] | undefined {
 
 function nonEmpty<T>(list: T[]): T[] | undefined {
     return list.length === 0 ? undefined : list;
-}
-
-/** A copy without `undefined` values, so absent facts compare equal to omitted ones. */
-function compact<T extends object>(attrs: T): T {
-    return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== undefined)) as T;
 }

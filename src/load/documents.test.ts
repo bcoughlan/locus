@@ -149,6 +149,14 @@ describe('lineOf', () => {
         expect(store.lineOf(at('other.yml'), '#')).toBeUndefined();
     });
 
+    test('finds number keys, such as an unquoted status code', async () => {
+        const store = memoryStore({
+            'api.yml': 'openapi: 3.1.0\npaths:\n  /pets:\n    get:\n      responses:\n        200:\n          description: OK\n',
+        });
+        await store.loadWithRefs(at('api.yml'));
+        expect(store.lineOf(at('api.yml'), '#/paths/~1pets/get/responses/200/description')).toBe(7);
+    });
+
     test('works for JSON files too', async () => {
         const store = memoryStore({ 'api.json': '{\n  "openapi": "3.1.0",\n  "info": {\n    "title": "T"\n  }\n}' });
         await store.loadWithRefs(at('api.json'));

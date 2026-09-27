@@ -12,7 +12,7 @@ import type { ChalkInstance, ColorSupportLevel } from 'chalk';
 import { endpointOutcome } from '../diff/report.ts';
 import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, Severity } from '../diff/report.ts';
 import type { AttrName } from '../model/tree.ts';
-import { badges, describeChange, details, flowLabel, inlineItems, schemeLabel, show, typeLabel } from './format.ts';
+import { badges, changeDistances, describeChange, details, flowLabel, inlineItems, schemeLabel, show, typeLabel } from './format.ts';
 import type { Definitions } from './format.ts';
 
 /** Chalk color levels: 0 none, 1 basic 16 colors, 2 256 colors, 3 truecolor. */
@@ -34,8 +34,9 @@ export function renderConsole(report: DiffReport, options: ConsoleOptions): stri
 }
 
 /**
- * After this many lines in one endpoint, a referenced schema expands only when
- * something inside it changed, and only once. Others show by name only.
+ * After this many lines in one endpoint, the endpoint shows only the paths to
+ * its changes. A referenced schema expands only when it is on a shortest path
+ * to a change, and only once. Unchanged nodes show as a count.
  */
 const LARGE_ENDPOINT = 400;
 
@@ -46,8 +47,10 @@ class ConsoleRenderer {
     private readonly options: ConsoleOptions;
     /** The definition diffs of the document being printed. */
     private definitions: Definitions = () => undefined;
-    /** Definitions whose content is being printed: a reference to one of them is a cycle. */
-    private readonly open = new Set<string>();
+    /** The references to the nearest change, per definition of the document being printed. */
+    private distances = new Map<string, number>();
+    /** Definitions whose content is being printed, innermost last: a reference to one of them is a cycle. */
+    private readonly open: string[] = [];
     /** Definitions printed in full in the current endpoint, and the line where that endpoint starts. */
     private readonly printed = new Set<string>();
     private endpointStart = 0;
@@ -73,6 +76,7 @@ class ConsoleRenderer {
 
     private document(doc: DocumentDiff): void {
         this.definitions = (id) => doc.schemas[id];
+        this.distances = changeDistances(doc.schemas);
         const tone = toneOf(doc.status, doc.impact);
         const name = doc.head ?? doc.base ?? doc.id;
         const note = doc.status === 'added' ? ' (new file)' : doc.status === 'removed' ? ' (deleted)' : '';
@@ -174,10 +178,37 @@ class ConsoleRenderer {
         this.children(node.children, inner);
     }
 
+    /** Print the nodes. In a large endpoint, only the ones that lead to a change, and a count of the others. */
     private children(nodes: DiffNode[], depth: number): void {
+        let skipped = 0;
         for (const child of nodes) {
+            // Depth 1 holds the endpoints themselves.
+            if (depth > 1 && this.isLarge() && !this.leadsToChange(child)) {
+                skipped++;
+                continue;
+            }
             this.node(child, depth);
         }
+        if (skipped > 0) {
+            this.line(' ', depth, this.c.dim(`… ${skipped} unchanged, not shown`));
+        }
+    }
+
+    /** The node changed, or a change shows below it: in its definition, or on a shortest path to a change. */
+    private leadsToChange(node: DiffNode): boolean {
+        if (node.status !== 'unchanged' || node.impact === undefined) {
+            return node.status !== 'unchanged';
+        }
+        if (node.ref !== undefined) {
+            // A path step prints even when its definition printed above, so the path stays complete.
+            const cycle = this.open.includes(node.ref);
+            return show(node, this.definitions).status !== 'unchanged' || (!cycle && this.onPath(node.ref, this.open));
+        }
+        return node.children.some((child) => this.leadsToChange(child));
+    }
+
+    private isLarge(): boolean {
+        return this.lines.length - this.endpointStart > LARGE_ENDPOINT;
     }
 
     /** `200  OK`: the summary (3.2) or the first description line next to the status code. */
@@ -198,7 +229,7 @@ class ConsoleRenderer {
         const stop = this.stopAt(node);
         const items = stop === undefined ? inlineItems(shown) : undefined;
         const itemsShown = items === undefined ? undefined : show(items, this.definitions);
-        const itemsStop = items === undefined ? undefined : this.stopAt(items);
+        const itemsStop = items === undefined ? undefined : this.stopAt(items, node.ref);
 
         const type = typeLabel(node, this.definitions);
         // A variant named after its schema would repeat the name: show the plain type instead.
@@ -239,26 +270,42 @@ class ConsoleRenderer {
     /**
      * Why a reference does not expand here: its definition is already open
      * above it (a cycle). Or the endpoint is large, and the definition
-     * printed in full earlier, or has no change inside. In a spec where every
-     * schema links to others, full expansion reaches most of the spec, so a
-     * large endpoint shows the paths to its changes and names the rest.
+     * printed in full earlier, or is not on a shortest path to a change. In a
+     * spec where every schema links to others, full expansion reaches most of
+     * the spec, and so do all paths to a change. A large endpoint shows the
+     * shortest paths to its changes and names the rest.
+     *
+     * `within` is a definition that the node prints inside but that is not
+     * open yet: the node's parent, for inline array items.
      */
-    private stopAt(node: DiffNode): 'recursive' | 'shown above' | 'not expanded' | undefined {
+    private stopAt(node: DiffNode, within?: string): 'recursive' | 'shown above' | 'not expanded' | undefined {
         if (node.ref === undefined) {
             return undefined;
         }
-        if (this.open.has(node.ref)) {
+        const open = within === undefined ? this.open : [...this.open, within];
+        if (open.includes(node.ref)) {
             return 'recursive';
         }
-        if (this.lines.length - this.endpointStart <= LARGE_ENDPOINT) {
+        if (!this.isLarge()) {
             return undefined;
         }
         if (this.printed.has(node.ref)) {
             return 'shown above';
         }
-        const definition = this.definitions(node.ref);
-        const changedInside = definition?.impact !== undefined && definition.status !== 'added' && definition.status !== 'removed';
-        return changedInside ? undefined : 'not expanded';
+        return this.onPath(node.ref, open) ? undefined : 'not expanded';
+    }
+
+    /**
+     * The definition `ref` is on a shortest path to a change: it is closer to a
+     * change than the innermost open definition. A changed definition always
+     * counts, so it shows its change.
+     */
+    private onPath(ref: string, open: string[]): boolean {
+        const status = this.definitions(ref)?.status;
+        const distance = this.distances.get(ref);
+        const enclosing = open.length === 0 ? undefined : this.distances.get(open[open.length - 1]);
+        const closer = distance !== undefined && (distance === 0 || enclosing === undefined || distance < enclosing);
+        return closer && status !== 'added' && status !== 'removed';
     }
 
     /** Print inside the definition `ref`: a reference to it below here is a cycle. */
@@ -267,12 +314,12 @@ class ConsoleRenderer {
             print();
             return;
         }
-        this.open.add(ref);
+        this.open.push(ref);
         this.printed.add(ref);
         try {
             print();
         } finally {
-            this.open.delete(ref);
+            this.open.pop();
         }
     }
 

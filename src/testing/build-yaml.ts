@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { DocumentStore } from '../load/documents.ts';
 import { detectVersion } from '../load/version.ts';
 import { buildDocument } from '../model/build.ts';
-import { effectiveAttrs } from '../model/tree.ts';
+import { expandReference } from '../model/tree.ts';
 import type { DocumentModel, ViewNode } from '../model/tree.ts';
 
 const ROOT = resolve('/virtual/api.yml');
@@ -49,11 +49,7 @@ export const childKeys = (node: ViewNode | { children: { key: string }[] }) => n
  * facts and children. The `ref` stays, so tests can check it.
  */
 export function expand(node: ViewNode, doc: DocumentModel): ViewNode {
-    const definition = node.ref === undefined ? undefined : doc.schemas.get(node.ref);
-    if (definition === undefined) {
-        return node;
-    }
-    return { ...node, attrs: effectiveAttrs(node, (id) => doc.schemas.get(id)), children: [...definition.children, ...node.children] };
+    return expandReference(node, (id) => doc.schemas.get(id));
 }
 
 /** Like {@link find}, but follows references at each step, and returns the expanded node. */

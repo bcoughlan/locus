@@ -19,12 +19,20 @@ export function pointerToParts(pointer: string): string[] {
 
 /** Build a `#/`-prefixed pointer from unescaped reference tokens. */
 export function partsToPointer(parts: string[]): string {
-    return '#/' + parts.map((part) => part.replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
+    return '#/' + parts.map(escapePart).join('/');
 }
 
-/** A pointer to a child: `#/paths` plus `/pets`, `get` gives `#/paths/~1pets/get`. */
+/**
+ * A pointer to a child: `#/paths` plus `/pets`, `get` gives `#/paths/~1pets/get`.
+ * `pointer` must be in the form that {@link partsToPointer} builds, or `#`.
+ */
 export function appendPointer(pointer: string, ...parts: (string | number)[]): string {
-    return partsToPointer([...pointerToParts(pointer), ...parts.map(String)]);
+    const base = pointer === '#' || pointer === '#/' ? '#' : pointer;
+    return parts.length === 0 ? pointer : `${base}/${parts.map((part) => escapePart(String(part))).join('/')}`;
+}
+
+function escapePart(part: string): string {
+    return part.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
 /** The node at the path `parts` in `doc`, or `undefined` when a step is missing. */

@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+paths:
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The requested pet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string
+        owner:
+          $ref: '#/components/schemas/User'
+          description: The person who owns the pet.
+        vet:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      description: A user.
+      properties:
+        email:
+          type: string

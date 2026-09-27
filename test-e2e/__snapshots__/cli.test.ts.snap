@@ -222,6 +222,23 @@ Result: breaking changes found.
 "
 `;
 
+exports[`output > a large endpoint shows only the shortest paths to its changes 1`] = `
+"      Responses
+        200  OK
+          application/json  Order
+            customer  Customer
+              address  Address
+-               zip  string  [breaking: property removed]
+                … 2 unchanged, not shown
+              … 2 unchanged, not shown
+            seller  Customer (shown above)
+            … 3 unchanged, not shown
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.
+"
+`;
+
 exports[`output > an unchanged document with warnings still shows its warnings 1`] = `
 "exit code: 0
 --- stdout

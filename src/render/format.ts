@@ -33,15 +33,61 @@ export function show(node: DiffNode, definitions: Definitions): Shown {
     if (definition === undefined) {
         return { node, attrs: node.attrs, changes: node.changes, children: node.children, status: node.status, severity: node.verdict?.severity };
     }
-    const definitionChanged = node.status === 'unchanged' && definition.status === 'changed';
+    // The use site's own facts (for example its own description) hide the definition's.
+    const hidden = new Set<string>([...Object.keys(node.attrs), ...node.changes.map((change) => change.name)]);
+    const paired = node.status === 'unchanged' || node.status === 'changed';
+    const inherited = paired ? definition.changes.filter((change) => !hidden.has(change.name)) : [];
     return {
         node,
         attrs: effectiveAttrs(node, definitions),
-        changes: [...node.changes, ...(node.status === 'unchanged' || node.status === 'changed' ? definition.changes : [])],
+        changes: [...node.changes, ...inherited],
         children: [...definition.children, ...node.children],
-        status: definitionChanged ? 'changed' : node.status,
-        severity: definitionChanged ? maxSeverity(node.verdict?.severity, definition.verdict?.severity) : node.verdict?.severity,
+        status: node.status === 'unchanged' && inherited.length > 0 ? 'changed' : node.status,
+        severity: inherited.reduce((max, change) => maxSeverity(max, change.severity), node.verdict?.severity),
     };
+}
+
+/**
+ * For each definition diff, the number of references to the nearest change.
+ * 0: the definition or one of its inline schemas changed. Definitions with no
+ * change in reach have no entry. A large endpoint follows only the references
+ * that get closer to a change: the shortest paths.
+ */
+export function changeDistances(schemas: Record<string, DiffNode>): Map<string, number> {
+    const referrers = new Map<string, string[]>();
+    const distances = new Map<string, number>();
+    const queue: string[] = [];
+    for (const [id, definition] of Object.entries(schemas)) {
+        let changed = false;
+        const visit = (node: DiffNode): void => {
+            changed ||= node.status !== 'unchanged';
+            if (node.ref !== undefined) {
+                const list = referrers.get(node.ref);
+                if (list === undefined) {
+                    referrers.set(node.ref, [id]);
+                } else {
+                    list.push(id);
+                }
+            }
+            node.children.forEach(visit);
+        };
+        visit(definition);
+        if (changed) {
+            distances.set(id, 0);
+            queue.push(id);
+        }
+    }
+    // Breadth-first from the changed definitions, backwards along the references.
+    for (let i = 0; i < queue.length; i++) {
+        const distance = distances.get(queue[i])! + 1;
+        for (const referrer of referrers.get(queue[i]) ?? []) {
+            if (!distances.has(referrer)) {
+                distances.set(referrer, distance);
+                queue.push(referrer);
+            }
+        }
+    }
+    return distances;
 }
 
 /** A value as short text: strings as they are, everything else as compact JSON. */
@@ -50,18 +96,23 @@ export function formatValue(value: unknown, maxLength = 80): string {
     return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
 
-/** `string<email>`, `integer<int64> | null`, `array[Pet]`, `Pet`, `one of`. `depth` stops arrays of themselves. */
-export function typeLabel(node: DiffNode, definitions: Definitions, depth = 0): string {
-    if (depth > 8) {
-        return '…';
-    }
+/**
+ * `string<email>`, `integer<int64> | null`, `array[Pet]`, `Pet`, `one of`.
+ * `outer` holds the definitions of the enclosing labels: an array of itself
+ * shows as `array[Tree]`.
+ */
+export function typeLabel(node: DiffNode, definitions: Definitions, outer: readonly string[] = []): string {
     const shown = show(node, definitions);
     const a = shown.attrs;
+    if (node.ref !== undefined && outer.includes(node.ref)) {
+        return a.title ?? '…';
+    }
     if (a.unresolved !== undefined) {
         return `unresolved $ref ${a.unresolved}`;
     }
+    const inner = node.ref === undefined ? outer : [...outer, node.ref];
     const types = a.type ?? [];
-    const named = types.filter((type) => type !== 'null').map((type) => singleTypeLabel(type, shown, definitions, depth));
+    const named = types.filter((type) => type !== 'null').map((type) => singleTypeLabel(type, shown, definitions, inner));
     const stream = shown.children.find((child) => child.kind === 'items' && child.key === 'itemSchema');
     if (named.length === 0) {
         if (a.composition !== undefined) {
@@ -69,7 +120,7 @@ export function typeLabel(node: DiffNode, definitions: Definitions, depth = 0): 
         } else if (a.const !== undefined) {
             named.push(a.const === null ? 'null' : Array.isArray(a.const) ? 'array' : typeof a.const);
         } else if (stream !== undefined) {
-            named.push(`stream of ${typeLabel(stream, definitions, depth + 1)}`);
+            named.push(`stream of ${typeLabel(stream, definitions, inner)}`);
         } else if (types.length === 0) {
             named.push('any');
         }
@@ -77,11 +128,11 @@ export function typeLabel(node: DiffNode, definitions: Definitions, depth = 0): 
     return types.includes('null') || a.nullable ? [...named, 'null'].join(' | ') : named.join(' | ');
 }
 
-function singleTypeLabel(type: string, shown: Shown, definitions: Definitions, depth: number): string {
+function singleTypeLabel(type: string, shown: Shown, definitions: Definitions, outer: readonly string[]): string {
     const a = shown.attrs;
     if (type === 'array') {
         const items = arrayItems(shown.children);
-        return `array[${items === undefined ? 'any' : typeLabel(items, definitions, depth + 1)}]`;
+        return `array[${items === undefined ? 'any' : typeLabel(items, definitions, outer)}]`;
     }
     if (type === 'object' && a.title !== undefined) {
         return a.title;

@@ -63,6 +63,24 @@ export function sortTypes(types: string[]): string[] {
 }
 
 /**
+ * A reference node with its definition merged in: the effective facts, the
+ * definition's children (then any own children), and the properties that
+ * the definition leaves out for this direction. The `ref` stays.
+ */
+export function expandReference(node: ViewNode, definitionOf: (ref: string) => ViewNode | undefined): ViewNode {
+    const definition = node.ref === undefined ? undefined : definitionOf(node.ref);
+    if (definition === undefined) {
+        return node;
+    }
+    return {
+        ...node,
+        attrs: effectiveAttrs(node, definitionOf),
+        children: [...definition.children, ...node.children],
+        omitted: definition.omitted,
+    };
+}
+
+/**
  * The facts that a node shows: the facts of its definition, under its own.
  * A nullable reference adds "null" to the definition's types. Works for view
  * nodes and diff nodes: `definitionOf` looks up the definition by `ref`.

@@ -13,7 +13,7 @@
  * node is a reference, it is expanded one level and compared in place.
  */
 import { isDeepStrictEqual } from 'node:util';
-import { STRUCTURAL_KINDS, effectiveAttrs } from '../model/tree.ts';
+import { STRUCTURAL_KINDS, effectiveAttrs, expandReference } from '../model/tree.ts';
 import type { AttrName, DocumentModel, ViewNode } from '../model/tree.ts';
 import { canonicalJson } from '../util.ts';
 import { endpointOutcome, maxSeverity } from './report.ts';
@@ -45,6 +45,7 @@ export function diffDocument(id: string, base: DocumentSide | undefined, head: D
     const servers = { base: base?.model.info.attrs.servers, head: head?.model.info.attrs.servers };
     const operations = diffOperations(base?.model.operations ?? [], head?.model.operations ?? [], servers, ctx);
     const webhooks = diffOperations(base?.model.webhooks ?? [], head?.model.webhooks ?? [], servers, ctx);
+    settleImpacts(ctx, [info, ...operations, ...webhooks]);
     const impact = [info, ...operations, ...webhooks].reduce<Severity | undefined>((max, node) => maxSeverity(max, node.impact), undefined);
     const status: ChangeStatus = base === undefined ? 'added' : head === undefined ? 'removed' : impact === undefined ? 'unchanged' : 'changed';
     return {
@@ -59,6 +60,43 @@ export function diffDocument(id: string, base: DocumentSide | undefined, head: D
         warnings: mergeWarnings(base?.model.warnings ?? [], head?.model.warnings ?? []),
         impact,
     };
+}
+
+/**
+ * Set the final `impact` of every node. During the diff, a definition in a
+ * reference cycle can finish before the definitions it depends on, so its
+ * impact misses their changes. Here, definition impacts rise until nothing
+ * changes (they only go up: none, compatible, breaking). Then each node takes
+ * the worst of its own change, its children, and its definition.
+ */
+function settleImpacts(ctx: DiffContext, roots: DiffNode[]): void {
+    const definitions = [...ctx.schemas.values()];
+    const impactOf = (node: DiffNode): Severity | undefined => {
+        let impact = node.status === 'unchanged' ? undefined : node.verdict?.severity;
+        for (const child of node.children) {
+            impact = maxSeverity(impact, impactOf(child));
+        }
+        if (node.ref !== undefined) {
+            impact = maxSeverity(impact, ctx.schemas.get(node.ref)?.impact);
+        }
+        // `not` reverses the direction rules, so any change below it is breaking.
+        return node.kind === 'not' && impact !== undefined ? 'breaking' : impact;
+    };
+    for (let changed = true; changed; ) {
+        changed = false;
+        for (const definition of definitions) {
+            const impact = impactOf(definition);
+            if (impact !== definition.impact && maxSeverity(impact, definition.impact) === impact) {
+                definition.impact = impact;
+                changed = true;
+            }
+        }
+    }
+    const assign = (node: DiffNode): void => {
+        node.children.forEach(assign);
+        node.impact = impactOf(node);
+    };
+    [...roots, ...definitions].forEach(assign);
 }
 
 /** Head warnings, then base warnings that the head does not repeat, marked as such. */
@@ -96,7 +134,11 @@ function diffMatched(base: ViewNode, head: ViewNode, ctx: DiffContext): DiffNode
     }
     const ref = base.ref !== undefined && head.ref !== undefined ? definitionDiff(base.ref, head.ref, ctx) : undefined;
     const children = pairChildren(base, head).map(([b, h]) => diffNode(b, h, { base, head }, ctx));
-    const changes = STRUCTURAL_KINDS.has(head.kind) ? [] : diffAttrs(base, head);
+    let changes = STRUCTURAL_KINDS.has(head.kind) ? [] : diffAttrs(base, head);
+    if (ref !== undefined && allowsNull(base, ctx.base) === allowsNull(head, ctx.head)) {
+        // `nullable` moved between the use and the definition, but null stays allowed here.
+        changes = changes.filter((change) => change.name !== 'nullable');
+    }
     const own = changes.reduce<Severity | undefined>((max, change) => maxSeverity(max, change.severity), undefined);
     const inside = ref === undefined ? undefined : ctx.schemas.get(ref)?.impact;
     const node: DiffNode = {
@@ -148,19 +190,15 @@ function memo(key: string, label: string, ctx: DiffContext, build: () => DiffNod
     return id;
 }
 
-/** A reference node as an inline node: its definition's facts under its own, and the definition's children. */
+/** A reference node as an inline node, compared in place. */
 function expand(node: ViewNode, schemas: Map<string, ViewNode>): ViewNode {
-    const definition = node.ref === undefined ? undefined : schemas.get(node.ref);
-    if (definition === undefined) {
-        return node;
-    }
-    return {
-        ...node,
-        attrs: effectiveAttrs(node, (id) => schemas.get(id)),
-        children: [...definition.children, ...node.children],
-        omitted: definition.omitted,
-        ref: undefined,
-    };
+    return { ...expandReference(node, (id) => schemas.get(id)), ref: undefined };
+}
+
+/** The node, with its definition, lets `null` through. */
+function allowsNull(node: ViewNode, schemas: Map<string, ViewNode>): boolean {
+    const attrs = effectiveAttrs(node, (id) => schemas.get(id));
+    return attrs.nullable === true || attrs.type?.includes('null') === true;
 }
 
 function allBreaking(node: DiffNode): DiffNode {

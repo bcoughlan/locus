@@ -1,0 +1,2 @@
+description: Pet has two properties that refer to User. The owner property has its own description next to the $ref, and the vet property does not. The head version changes the description of User. Only the vet property shows the change.
+expect: compatible

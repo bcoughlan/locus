@@ -8,7 +8,7 @@
  */
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, extname, resolve } from 'node:path';
-import { LineCounter, isMap, isNode, isScalar, isSeq, parseDocument } from 'yaml';
+import { LineCounter, isAlias, isMap, isNode, isScalar, isSeq, parseDocument } from 'yaml';
 import type { Document as YamlDocument } from 'yaml';
 import { InputError } from '../errors.ts';
 import { refString, tryDecode } from '../util.ts';
@@ -221,19 +221,23 @@ export class DocumentStore {
             parsed = { doc: parseDocument(text, { lineCounter, merge: true, uniqueKeys: false }), lineCounter };
             this.positions.set(file, parsed);
         }
-        const parts = pointerToParts(pointer);
-        if (parts.length === 0) {
-            return 1;
-        }
-        const parent = parts.length === 1 ? parsed.doc.contents : parsed.doc.getIn(parts.slice(0, -1), true);
-        const last = parts[parts.length - 1];
-        let offset: number | undefined;
-        if (isMap(parent)) {
-            const pair = parent.items.find((item) => isScalar(item.key) && String(item.key.value) === last);
-            offset = isScalar(pair?.key) ? pair.key.range?.[0] : undefined;
-        } else if (isSeq(parent)) {
-            const item = parent.items[Number(last)];
-            offset = isNode(item) ? item.range?.[0] : undefined;
+        // Walk by hand: `getIn` compares keys by value, so it misses the number key 200 for the part "200".
+        let node: unknown = parsed.doc.contents;
+        let offset: number | undefined = 0;
+        for (const part of pointerToParts(pointer)) {
+            if (isAlias(node)) {
+                node = node.resolve(parsed.doc);
+            }
+            if (isMap(node)) {
+                const pair = node.items.find((item) => isScalar(item.key) && String(item.key.value) === part);
+                offset = isScalar(pair?.key) ? pair.key.range?.[0] : undefined;
+                node = pair?.value;
+            } else if (isSeq(node)) {
+                node = node.items[Number(part)];
+                offset = isNode(node) ? node.range?.[0] : undefined;
+            } else {
+                return undefined;
+            }
         }
         return offset === undefined ? undefined : parsed.lineCounter.linePos(offset).line;
     }
