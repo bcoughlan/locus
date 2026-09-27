@@ -1,0 +1,20 @@
+shape: sequence_diagram
+
+render: "renderConsole()"
+doc: "document()"
+op: "operation()"
+node: "node() / schema()"
+show: "show()\nformat.ts"
+guard: "stopAt()"
+
+render -> doc: "each DocumentDiff"
+doc -> doc: "definitions = doc.schemas"
+doc -> op: "each changed endpoint"
+op -> node: "sections, groups, parameters, bodies"
+node -> show: "node"
+show -> node: "facts, changes, children\n(definition merged in)"
+node -> guard: "expand this ref?"
+guard -> node: "no: recursive, shown above,\nor not expanded (large endpoint)"
+guard -> node: "yes"
+node -> node: "print children inside the ref"
+render -> render: "summary: counts, result"

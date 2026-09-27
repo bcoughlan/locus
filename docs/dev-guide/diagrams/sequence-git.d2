@@ -1,0 +1,23 @@
+shape: sequence_diagram
+
+cmd: "runDiff()\ncommands/diff.ts"
+checkout: "checkoutRef()\nsources/git.ts"
+git: git
+tmp: "temporary folder\n(tmp-promise)"
+compare: "compareFiles()\ncompare.ts"
+
+cmd -> checkout: "ref, patterns, cwd"
+checkout -> git: "rev-parse --show-toplevel"
+checkout -> git: "ls-tree -r <ref>"
+git -> checkout: "all paths at the ref"
+checkout -> checkout: "match patterns"
+loop: "until no new file" {
+  checkout -> git: "cat-file --batch\n(one process per round)"
+  git -> checkout: "file contents"
+  checkout -> tmp: "write files"
+  checkout -> checkout: 'parse, collect $ref targets'
+}
+checkout -> cmd: "files in the copy"
+cmd -> compare: "base = copy, head = working tree"
+compare -> cmd: "report"
+cmd -> tmp: "cleanup()"

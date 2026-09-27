@@ -1,0 +1,22 @@
+shape: sequence_diagram
+
+dev: Developer
+cmd: "runDiff()"
+compare: "compareFiles()"
+store: "DocumentStore"
+build: "buildDocument()"
+diff: "diffDocument()"
+render: "renderConsole()"
+
+dev -> cmd: "locus diff --source old new"
+cmd -> cmd: "expandPatterns(): files per side"
+cmd -> compare: "base files, head files"
+compare -> store: "load each file"
+compare -> build: "each OpenAPI document"
+build -> compare: "DocumentModel"
+compare -> diff: "each file pair"
+diff -> compare: "DocumentDiff"
+compare -> cmd: "DiffReport"
+cmd -> render: "report"
+render -> cmd: "text"
+cmd -> dev: "text, exit code"

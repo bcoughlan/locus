@@ -1,0 +1,41 @@
+direction: right
+
+report: "DiffReport" {
+  shape: class
+  baseLabel: string
+  headLabel: string
+  documents: "DocumentDiff[]"
+  endpoints: "EndpointCounts"
+  breaking: boolean
+}
+
+doc: "DocumentDiff" {
+  shape: class
+  "base, head": "display names"
+  status: "added | removed | changed | unchanged"
+  info: "DiffNode (document facts)"
+  operations: "DiffNode[]"
+  webhooks: "DiffNode[]"
+  schemas: "Record<id, DiffNode>"
+  warnings: "string[]"
+  impact: "breaking | compatible"
+}
+
+node: "DiffNode" {
+  shape: class
+  "kind, key, label": "what and where"
+  "data flow": "request | response"
+  status: "added | removed | changed | unchanged"
+  verdict: "severity + reason"
+  attrs: "facts to show"
+  changes: "AttrChange[] (before, after, verdict)"
+  children: "DiffNode[]"
+  ref: "id in DocumentDiff.schemas"
+  source: "base / head file + pointer"
+  impact: "worst change in the subtree"
+}
+
+report.documents -> doc
+doc.operations -> node
+doc.schemas -> node
+node.ref -> doc.schemas: "look up while printing" {style.stroke-dash: 4}

@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>locus developer guide</title>
+<!-- Generated from docs/dev-guide/guide.html by scripts/build-dev-guide.mjs. Edit the template, not docs/developer-guide.html. -->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d2330; --muted: #5b6475; --line: #e3e7ee; --accent: #2457c5;
+    --code-bg: #f3f5f9; --card: #ffffff;
+    --added: #1a7f37; --changed: #b76e00; --breaking: #c62828;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d; --fg: #e4e8ef; --muted: #9aa3b2; --line: #2a303b; --accent: #7aa7ff;
+      --code-bg: #1d222b; --card: #ffffff;
+      --added: #3fb950; --changed: #e3a008; --breaking: #f47067;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 880px; margin: 0 auto; padding: 32px 16px 96px; }
+  nav { border: 1px solid var(--line); border-radius: 8px; padding: 12px 20px; margin: 24px 0 32px; }
+  nav ol { margin: 0; padding-left: 20px; columns: 2; }
+  h1 { font-size: 2em; margin: 0 0 4px; }
+  h2 { font-size: 1.45em; margin: 48px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.1em; margin: 28px 0 8px; }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-left: 24px; }
+  li { margin: 3px 0; }
+  a { color: var(--accent); }
+  code { font: 0.9em ui-monospace, "Cascadia Code", Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: 12px 16px; border-radius: 8px; overflow-x: auto; }
+  pre code { padding: 0; background: none; }
+  .lead { color: var(--muted); margin: 0; }
+  /* Diagrams use the full window width and show at their natural size. Wide ones scroll. Click to fit the width. */
+  figure { position: relative; left: 50%; transform: translateX(-50%); width: calc(100vw - 32px); max-width: 1500px; margin: 20px 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px; overflow-x: auto; cursor: zoom-out; }
+  figure img { display: block; max-width: none; height: auto; margin: 0 auto; }
+  figure.fit { cursor: zoom-in; }
+  figure.fit img { max-width: 100%; }
+  figcaption { color: #5b6475; font-size: 0.85em; padding: 6px 4px 0; }
+  table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+  th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; }
+  .added { color: var(--added); } .changed { color: var(--changed); } .breaking { color: var(--breaking); }
+</style>
+</head>
+<body>
+<main>
+<h1>locus developer guide</h1>
+<p class="lead">How <code>locus diff</code> works, for people who change its code.</p>
+
+<nav>
+<ol>
+  <li><a href="#what">What locus does</a></li>
+  <li><a href="#pipeline">The pipeline</a></li>
+  <li><a href="#run">One run, step by step</a></li>
+  <li><a href="#git">Git mode</a></li>
+  <li><a href="#load">Loading files and $refs</a></li>
+  <li><a href="#model">The model</a></li>
+  <li><a href="#direction">Direction</a></li>
+  <li><a href="#diff">The diff</a></li>
+  <li><a href="#rules">The rules</a></li>
+  <li><a href="#report">The report</a></li>
+  <li><a href="#render">Rendering</a></li>
+  <li><a href="#tests">Tests</a></li>
+  <li><a href="#recipes">Recipes</a></li>
+  <li><a href="#glossary">Glossary</a></li>
+</ol>
+</nav>
+
+<h2 id="what">1. What locus does</h2>
+<ul>
+  <li>It compares two versions of OpenAPI documents (3.0, 3.1, 3.2).</li>
+  <li>It prints each changed endpoint in full, like API documentation.</li>
+  <li>It marks each change: <span class="added">green</span> added, <span class="changed">orange</span> compatible, <span class="breaking">red</span> breaking.</li>
+  <li>It exits with 1 on a breaking change, 2 on bad input, else 0.</li>
+</ul>
+<pre><code>locus diff "specs/*.yml"                          # base: origin/main (git)
+locus diff --source ../old/specs specs            # base: local files</code></pre>
+
+<h2 id="pipeline">2. The pipeline</h2>
+<p>Each stage has one job. Each stage returns plain data to the next.</p>
+<figure><img data-diagram="pipeline" alt="Pipeline: CLI, sources, load, model, diff, render"><figcaption>Wide diagrams scroll sideways. Click a diagram to fit it to the window.</figcaption></figure>
+<table>
+  <tr><th>Stage</th><th>Folder</th><th>Job</th></tr>
+  <tr><td>Sources</td><td><code>src/sources/</code></td><td>Patterns to file lists. Git mode copies the base files to a temporary folder.</td></tr>
+  <tr><td>Load</td><td><code>src/load/</code></td><td>Parse YAML and JSON. Resolve <code>$ref</code>s on demand.</td></tr>
+  <tr><td>Model</td><td><code>src/model/</code></td><td>One view tree per endpoint, plus a table of schema definitions.</td></tr>
+  <tr><td>Diff</td><td><code>src/diff/</code></td><td>Match nodes, compare facts, classify each change.</td></tr>
+  <tr><td>Render</td><td><code>src/render/</code></td><td>Print the diff report.</td></tr>
+</table>
+<ul>
+  <li>The diff runs on the same tree that the renderer prints.</li>
+  <li>So every change the diff finds is visible, and every visible fact is compared.</li>
+</ul>
+
+<h2 id="run">3. One run, step by step</h2>
+<figure><img data-diagram="sequence-diff" alt="Sequence of one locus diff run"></figure>
+<ul>
+  <li><code>main()</code> builds a new commander program on each call. It never calls <code>process.exit</code>. It returns the exit code.</li>
+  <li><code>expandPatterns()</code> turns files, folders, and globs into <code>SpecFile</code>s. Each has an <code>id</code>, the key that pairs base and head files.</li>
+  <li><code>compareFiles()</code> loads each side with its own <code>DocumentStore</code>. It skips files without an <code>openapi</code> field (shared schema files).</li>
+  <li><code>pairById()</code> pairs documents. Two files named directly pair even with different names.</li>
+  <li><code>diffDocument()</code> compares one pair. <code>buildReport()</code> counts the endpoints.</li>
+  <li>Input problems throw <code>InputError</code>. <code>main()</code> prints it and returns 2.</li>
+</ul>
+
+<h2 id="git">4. Git mode</h2>
+<figure><img data-diagram="sequence-git" alt="Sequence of git mode"></figure>
+<ul>
+  <li>The head is the working tree, so uncommitted edits show.</li>
+  <li>The base is the same patterns at the ref (default <code>origin/main</code>).</li>
+  <li><code>checkoutRef()</code> copies the matched files, then every file their <code>$ref</code>s reach, into a temporary folder (tmp-promise).</li>
+  <li>Each round reads all its files with one <code>git cat-file --batch</code> process.</li>
+  <li>The copy mirrors the repository. So relative <code>$ref</code>s work the same as in the working tree.</li>
+  <li>Both sides pair by path relative to the current folder (<code>keyByPath()</code>).</li>
+  <li>A plain path that does not exist at the ref is a new file.</li>
+  <li>After this, git mode runs the same code as <code>--source</code>.</li>
+</ul>
+
+<h2 id="load">5. Loading files and $refs</h2>
+<p><code>DocumentStore</code> in <code>src/load/documents.ts</code> owns all file access.</p>
+<ul>
+  <li><code>load(path)</code> reads and parses one file. JSON uses <code>JSON.parse</code>. YAML allows merge keys (<code>&lt;&lt;</code>) and duplicate keys.</li>
+  <li><code>loadWithRefs(path)</code> also loads every file that the <code>$ref</code>s reach. A file that fails to load becomes a warning, not an error.</li>
+  <li><code>deref(node, file)</code> follows a <code>$ref</code> when asked. It resolves against the file that holds the reference, follows chains, and caches each target.</li>
+  <li>Nothing is dereferenced up front. The parsed files keep their <code>$ref</code>s.</li>
+  <li><code>lineOf(file, pointer)</code> gives the line of a JSON pointer, for a UI that jumps to the spec.</li>
+  <li>Not supported: remote <code>$ref</code>s (<code>https://</code>) and <code>$anchor</code>s. They become warnings.</li>
+</ul>
+
+<h2 id="model">6. The model</h2>
+<p><code>buildDocument()</code> turns one OpenAPI document into a <code>DocumentModel</code>: an info node, one view tree per operation and webhook, and a table of schema definitions.</p>
+<figure><img data-diagram="model" alt="View tree and definition table"></figure>
+
+<h3>View nodes</h3>
+<ul>
+  <li><code>kind</code>: what the node is (operation, parameter, property, response, and so on).</li>
+  <li><code>key</code>: identifies the node among its siblings. The diff matches by kind and key.</li>
+  <li><code>label</code>: the display name.</li>
+  <li><code>direction</code>: request or response (see <a href="#direction">section 7</a>).</li>
+  <li><code>attrs</code>: typed facts, such as <code>type</code>, <code>required</code>, <code>maximum</code>. See <code>Attrs</code> in <code>src/model/tree.ts</code>.</li>
+  <li><code>ref</code>: the id of a schema definition that the node shows.</li>
+  <li><code>source</code>: the file and JSON pointer where the node is defined.</li>
+  <li>Sections and groups are structural: they have no facts of their own.</li>
+</ul>
+
+<h3>References stay references</h3>
+<ul>
+  <li>A schema that is only a <code>$ref</code> becomes a node with a <code>ref</code>.</li>
+  <li>The definition is built once per schema and direction, and stored in <code>DocumentModel.schemas</code>.</li>
+  <li>A reference cycle points back to its definition. No special case is needed.</li>
+  <li>"Only a <code>$ref</code>" includes a description next to it, a one-member <code>allOf</code> around it, and a nullable form (<code>oneOf: [X, {type: null}]</code>, 3.0 <code>nullable</code>).</li>
+  <li>Any other schema is built in place: its <code>allOf</code> members merge into one set of facts.</li>
+</ul>
+<figure><img data-diagram="sequence-schema" alt="Sequence of building a schema node"></figure>
+
+<h3>Keys and normalization</h3>
+<ul>
+  <li>Parameters: grouped by location. Header names ignore case.</li>
+  <li>Path parameters: keyed by their position in the path. A rename is not a removal.</li>
+  <li><code>oneOf</code>/<code>anyOf</code> members: keyed by schema name, then type, then position.</li>
+  <li>Responses: keyed by status code, sorted by code.</li>
+  <li><code>style</code> and <code>explode</code> hold effective values. An explicit default equals an omitted one.</li>
+  <li>readOnly properties leave request trees. writeOnly properties leave response trees.</li>
+  <li>The 3.0 shim (<code>src/oas/shim30.ts</code>) converts 3.0 schemas to 3.1 form. All 3.0 knowledge stays there.</li>
+  <li>The <code>openapi</code> version is not a fact. A 3.0 to 3.1 upgrade alone shows no change.</li>
+</ul>
+
+<h2 id="direction">7. Direction</h2>
+<p>Most rules depend on who writes a value.</p>
+<figure><img data-diagram="direction" alt="Request and response directions, flipped for webhooks"></figure>
+<ul>
+  <li>A value the client sends can accept more over time, but not less.</li>
+  <li>A value the client receives can promise more over time, but not less.</li>
+  <li>Example: a new enum value is compatible in a request, but breaking in a response.</li>
+  <li>Webhooks and callbacks flip both directions.</li>
+</ul>
+
+<h2 id="diff">8. The diff</h2>
+<p><code>src/diff/diff.ts</code> compares two models and builds the report.</p>
+<h3>Matching</h3>
+<ul>
+  <li>Operations: by <code>operationId</code> (when unique), then method and path, then method and path with parameter names ignored.</li>
+  <li>Other nodes: by kind and key.</li>
+  <li>Variants: when names change (a renamed component), removed and added variants pair by position.</li>
+  <li>Order: head order. A removed node shows where it was. Removals print before additions.</li>
+</ul>
+<h3>Comparing</h3>
+<figure><img data-diagram="sequence-diffref" alt="Sequence of comparing two nodes with references"></figure>
+<ul>
+  <li>Node on both sides: compare its own facts. Each changed fact gets a verdict from the rules.</li>
+  <li>Node on one side only: the rules classify it once. Its whole subtree inherits that severity.</li>
+  <li>References on both sides: the two definitions are compared once. Every use shares the result.</li>
+  <li>A reference on one side only: it is expanded one level and compared in place.</li>
+  <li>Inside <code>not</code>: every change is breaking, because <code>not</code> reverses the direction rules.</li>
+</ul>
+<h3>Status, verdict, impact</h3>
+<ul>
+  <li><code>status</code>: added, removed, changed (own facts changed), or unchanged.</li>
+  <li><code>verdict</code>: severity (breaking or compatible) and a reason.</li>
+  <li><code>impact</code>: the worst change in the subtree. It rolls up to the endpoint and the document.</li>
+  <li>Exit code 1 means some document has impact "breaking".</li>
+</ul>
+
+<h2 id="rules">9. The rules</h2>
+<ul>
+  <li><code>src/diff/rules.ts</code> holds every rule. <code>docs/breaking-changes.md</code> describes the same rules in prose. Keep the two in step.</li>
+  <li><code>classifyAdded()</code> and <code>classifyRemoved()</code>: a node on one side only.</li>
+  <li><code>classifyAttr()</code>: one changed fact.</li>
+  <li>Helpers express the direction logic: <code>directional()</code>, <code>constraint()</code> (tightened or loosened).</li>
+  <li>A reason says what changed and, when it matters, the direction: "maximum decreased (client sends)".</li>
+</ul>
+
+<h2 id="report">10. The report</h2>
+<p><code>DiffReport</code> in <code>src/diff/report.ts</code> is the output structure for every renderer. It holds no colors or markup.</p>
+<figure><img data-diagram="report" alt="DiffReport, DocumentDiff, DiffNode"></figure>
+<ul>
+  <li>Each document has its own <code>schemas</code> table of definition diffs.</li>
+  <li>A node's <code>ref</code> points into that table. Renderers look it up while they print.</li>
+  <li><code>endpointOutcome()</code> gives what happened to an endpoint as a whole.</li>
+</ul>
+
+<h2 id="render">11. Rendering</h2>
+<figure><img data-diagram="sequence-render" alt="Sequence of console rendering"></figure>
+<ul>
+  <li><code>show(node, definitions)</code> in <code>format.ts</code> merges a node with its definition: facts, changes, and children.</li>
+  <li>Markers: <code>+</code> added, <code>-</code> removed, <code>~</code> changed. Colors repeat the markers.</li>
+  <li>A breaking change carries <code>[breaking: reason]</code>, so the output works without color.</li>
+  <li>A cycle prints <code>(recursive)</code>.</li>
+  <li>After 400 lines in one endpoint, a referenced schema expands only when something inside it changed, and only once. Others print as <code>(not expanded)</code> or <code>(shown above)</code>.</li>
+  <li><code>format.ts</code> holds the text helpers (type labels, badges, change lines). An HTML renderer can reuse them.</li>
+</ul>
+
+<h2 id="tests">12. Tests</h2>
+<ul>
+  <li>Unit tests sit next to the code: <code>src/**/*.test.ts</code>.</li>
+  <li><code>src/testing/build-yaml.ts</code> builds a model from inline YAML.</li>
+  <li>End-to-end tests call <code>main()</code> in-process and snapshot the whole run: exit code, stdout, stderr.</li>
+  <li>The corpus: <code>test-e2e/corpus/&lt;area&gt;/&lt;scenario&gt;/</code> holds <code>base/</code>, <code>head/</code>, <code>scenario.yml</code> (expected class), and <code>output.txt</code> (snapshot).</li>
+  <li>The git test builds a temporary repository with an empty global git configuration.</li>
+</ul>
+<pre><code>npm run check                                   # typecheck, lint, tests, build
+npx vitest run src/diff/rules.test.ts           # one file
+npx vitest run test-e2e/corpus.test.ts -u       # update snapshots, then read the diff</code></pre>
+
+<h2 id="recipes">13. Recipes</h2>
+<h3>Add a new fact</h3>
+<ol>
+  <li>Add the attribute to <code>Attrs</code> in <code>src/model/tree.ts</code>.</li>
+  <li>Set it in the model: <code>schemaAttrs()</code> for schemas, <code>build.ts</code> for other nodes.</li>
+  <li>Classify its changes in <code>classifyAttr()</code> in <code>rules.ts</code>.</li>
+  <li>Add a row to <code>docs/breaking-changes.md</code>.</li>
+  <li>Show it: a badge or detail in <code>format.ts</code>.</li>
+  <li>Test: a rule row in <code>rules.test.ts</code>, and a corpus scenario.</li>
+</ol>
+<h3>Debug a wrong verdict</h3>
+<ol>
+  <li>Make a corpus scenario that shows the problem.</li>
+  <li>Find the reason text in the output. Search for it in <code>rules.ts</code>.</li>
+  <li>Check the node's direction and kind. Most wrong verdicts come from one of these.</li>
+</ol>
+<h3>Add a renderer</h3>
+<ol>
+  <li>Take a <code>DiffReport</code> from <code>compareFiles()</code>.</li>
+  <li>Walk <code>documents</code>, then <code>operations</code>. Use <code>show()</code> for each schema node.</li>
+  <li>Keep a set of open definition ids, to stop at cycles.</li>
+  <li>Reuse <code>typeLabel()</code>, <code>badges()</code>, <code>details()</code>, and <code>describeChange()</code>.</li>
+</ol>
+
+<h2 id="glossary">14. Glossary</h2>
+<table>
+  <tr><td>Base, head</td><td>The old and the new version.</td></tr>
+  <tr><td>View tree</td><td>The model of one endpoint: nodes with facts.</td></tr>
+  <tr><td>Definition</td><td>A schema that <code>$ref</code>s point to, built once per direction.</td></tr>
+  <tr><td>Direction</td><td>Who writes a value: request (client sends) or response (client receives).</td></tr>
+  <tr><td>Verdict</td><td>Breaking or compatible, with a reason.</td></tr>
+  <tr><td>Impact</td><td>The worst change in a subtree.</td></tr>
+  <tr><td>Corpus</td><td>The end-to-end scenarios in <code>test-e2e/corpus/</code>.</td></tr>
+</table>
+</main>
+<script>
+  // Click a diagram to switch between natural size and fit-to-width.
+  document.querySelectorAll('figure').forEach((figure) => figure.addEventListener('click', () => figure.classList.toggle('fit')));
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+direction: down
+
+tree: "View tree of one endpoint" {
+  direction: right
+  op: "operation\nGET /pets/{id}"
+  resp: "section\nResponses"
+  r200: "response\n200"
+  media: "mediaType\napplication/json\nref → Pet"
+  op -> resp -> r200 -> media
+}
+
+table: "DocumentModel.schemas: one entry per schema and direction" {
+  direction: right
+  pet: "schema: Pet (response)"
+  name: "property: name"
+  owner: "property: owner\nref → Owner"
+  tags: "property: tags"
+  items: "items\nref → Pet"
+  ownerDef: "schema: Owner (response)"
+  email: "property: email"
+  pet -> name
+  pet -> owner
+  pet -> tags -> items
+  ownerDef -> email
+}
+
+tree.media -> table.pet: "ref" {style.stroke-dash: 4}
+table.owner -> table.ownerDef: "ref" {style.stroke-dash: 4}
+table.items -> table.pet: "cycle: points back" {style.stroke-dash: 4; style.stroke: "#c0392b"}

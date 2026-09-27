@@ -34,9 +34,9 @@ The diff is a pipeline. Each stage returns plain data.
 
 1. `src/sources/`: command-line patterns to files (`files.ts`), and git mode (`git.ts`), which copies the base files from a git ref into a temporary folder. After that, git mode and `--source` mode run the same code.
 2. `src/load/`: YAML/JSON parsing and `$ref` resolution across files (`documents.ts`). A reference resolves against the file it appears in.
-3. `src/model/`: each document becomes view trees (`tree.ts`), one per operation. `schema.ts` merges `allOf`, stops cycles with a `recursive` marker, and applies the 3.0 shim (`src/oas/shim30.ts`). 3.0 knowledge stays in the shim. 3.1 and 3.2 share one code path.
-4. `src/diff/`: `diff.ts` matches operations (operationId, then method and path) and nodes (kind and key), and compares attributes. `rules.ts` classifies each change. `report.ts` defines the diff report, the output structure for all renderers.
-5. `src/render/`: `console.ts` prints the report. `format.ts` holds text helpers that an HTML renderer can share.
+3. `src/model/`: each document becomes view trees (`tree.ts`), one per operation. A `$ref` to a schema stays a reference: the node's `ref` names a shared definition in `DocumentModel.schemas`, built once per schema and direction (`schema.ts`). A cycle points back to its definition. Schemas that are not plain references are built in place, with `allOf` merged. Every node has a `source` (file and JSON pointer). `DocumentStore.lineOf` turns that into a line. The 3.0 shim (`src/oas/shim30.ts`) holds all 3.0 knowledge. 3.1 and 3.2 share one code path.
+4. `src/diff/`: `diff.ts` matches operations (operationId, then method and path) and nodes (kind and key), and compares attributes. Two references compare their definitions once (memoized in `DocumentDiff.schemas`). `rules.ts` classifies each change. `report.ts` defines the diff report, the output structure for all renderers.
+5. `src/render/`: `console.ts` prints the report and expands references while it prints (`show()` in `format.ts`). It stops at cycles, and in a large endpoint it names unchanged referenced schemas instead of expanding them.
 
 Key rules of the design:
 

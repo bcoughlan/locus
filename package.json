@@ -37,6 +37,7 @@
     "test:unit": "vitest run src",
     "test:e2e": "vitest run test-e2e",
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "docs:guide": "node scripts/build-dev-guide.mjs",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

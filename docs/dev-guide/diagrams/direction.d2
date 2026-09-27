@@ -1,0 +1,15 @@
+direction: right
+
+normal: "Endpoint" {
+  client: Client
+  api: API
+  client -> api: "request: client sends\n(direction = request)"
+  api -> client: "response: client receives\n(direction = response)"
+}
+
+hook: "Webhook or callback (directions flip)" {
+  api: API
+  consumer: Consumer
+  api -> consumer: "request: consumer receives\n(direction = response)"
+  consumer -> api: "response: consumer sends\n(direction = request)"
+}

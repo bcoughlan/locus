@@ -91,7 +91,7 @@ The first column marks each line: `+` added, `-` removed, `~` changed. A breakin
 ## Limits
 
 - The tool does not follow remote references (`https://...`) or `$anchor` references. It warns about them.
-- For a very large document, the tool expands fewer nested `$ref` levels to limit memory use. It prints a warning when it does this.
+- In a large endpoint (more than 400 printed lines), a referenced schema with no change inside shows by name, marked `(not expanded)`, and a schema that already printed shows `(shown above)`. The comparison itself always covers the whole spec.
 - A change of a regular expression (`pattern`) always counts as breaking, because the tool cannot compare two patterns.
 
 ## Use as a library

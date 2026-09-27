@@ -109,3 +109,23 @@ Reflection:
 - Snapshots of real scenarios found more display problems than the unit tests did. Next time, I start the corpus right after the first renderer, not after the git mode.
 - Subagents wrote fixtures fast, and their disagreement reports gave early signal. A rate limit stopped three of them partway, and their partial work was still usable because each scenario was self-contained.
 - Decision: tweak, no re-implementation.
+
+## M8 References stay references
+
+The user pointed out a design flaw: the model copied every referenced schema into each place of use. That costs memory, and it loses the location in the spec, so a UI cannot jump to a line.
+
+Result:
+
+- A `$ref` stays a reference in the model. Each schema is built once per direction, in a table. A cycle points back to its definition.
+- The diff compares each pair of definitions once and shares the result.
+- The console renderer expands references while it prints. It stops at cycles. In a large endpoint, it names unchanged referenced schemas.
+- Every node has a source (file and JSON pointer). `DocumentStore.lineOf` gives the line number.
+- The node budget and its depth fallback are gone.
+- All 209 end-to-end snapshots stayed the same.
+- Stripe: a self-diff takes 3.6 seconds (before: 15 seconds). A removed `customer` property now flags all 612 endpoints, because every error response embeds a customer through `payment_intent`. The old depth limit hid that path and flagged 147.
+
+Reflection:
+
+- The first model optimized for the simplest diff (plain trees) and paid for it in memory and lost locations. Next time, I keep the input's own structure (references) in the model from the start, and expand only where a person reads the output.
+- Keeping all output snapshots before the refactor made it safe: the refactor had a precise target.
+- Decision: re-implemented the model's schema part, the diff's reference handling, and the renderer's expansion.

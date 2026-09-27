@@ -1,0 +1,25 @@
+shape: sequence_diagram
+
+caller: "diffNode()"
+matched: "diffMatched(base, head)"
+memo: "definitionDiff()\nmemo()"
+table: "ctx.schemas\n(definition diffs)"
+attrs: "diffAttrs()\nrules.ts"
+kids: "pairChildren()"
+
+caller -> matched: "base node, head node"
+one: "a reference on one side only" {
+  matched -> matched: "expand() the reference,\ncompare in place"
+}
+both: "references on both sides" {
+  matched -> memo: "base ref, head ref"
+  memo -> table: "pair seen?"
+  table -> memo: "no: take an id first\n(a cycle finds it)"
+  memo -> matched: "diffMatched(definitions)"
+  memo -> caller: "id (shared by every use)"
+}
+matched -> attrs: "own attributes"
+attrs -> matched: "changes with verdicts"
+matched -> kids: "match children by kind + key"
+kids -> caller: "diffNode() for each pair"
+matched -> caller: "DiffNode: status, changes,\nref, impact"
