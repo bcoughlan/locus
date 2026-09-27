@@ -1,0 +1,294 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`exit codes > 0 for compatible changes 1`] = `
+"exit code: 0
+--- stdout
+Comparing old → new
+
+~ new/api.yml  Test 1
+
+~   GET /pets  listPets  [changed]
+~     description: (none) → Lists the pets.
+      Responses
+        200  OK
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.
+--- stderr
+"
+`;
+
+exports[`exit codes > 0 when nothing changed 1`] = `
+"exit code: 0
+--- stdout
+Comparing old → new
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.
+--- stderr
+"
+`;
+
+exports[`exit codes > 1 for breaking changes 1`] = `
+"exit code: 1
+--- stdout
+Comparing old → new
+
+~ new/api.yml  Test 1
+
+~   GET /pets  listPets  [breaking]
++     Request
++       Query parameters
++         limit  integer  required  [breaking: required query parameter added (client sends)]
+      Responses
+        200  OK
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.
+--- stderr
+"
+`;
+
+exports[`exit codes > 2 for a Swagger 2.0 document 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: old.yml: Swagger 2.0 documents are not supported. Convert the document to OpenAPI 3 first.
+"
+`;
+
+exports[`exit codes > 2 for a file that does not exist 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: missing.yml: no such file or folder
+"
+`;
+
+exports[`exit codes > 2 for a file that does not parse, named relative to the current folder 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: new.yml: Flow sequence in block collection must be sufficiently indented and end with a ] at line 1, column 14:
+
+openapi: [3.1
+             ^
+
+"
+`;
+
+exports[`exit codes > 2 for a usage error 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: missing required argument 'specs'
+"
+`;
+
+exports[`exit codes > 2 when --base and --source are both given 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: option '--base <ref>' cannot be used with option '--source <pattern>'
+"
+`;
+
+exports[`exit codes > 2 when --source selects no OpenAPI document, so a wrong pattern cannot pass as "all new" 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: No OpenAPI documents found in --source old/*.yaml
+"
+`;
+
+exports[`exit codes > 2 when a named file is not an OpenAPI document 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: schemas.yml: not an OpenAPI document (it has no "openapi" field)
+"
+`;
+
+exports[`exit codes > 2 when the head selects no OpenAPI document 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: No OpenAPI documents found in new
+"
+`;
+
+exports[`file selection and pairing > $refs into other files resolve on both sides 1`] = `
+"exit code: 1
+--- stdout
+Comparing old → new
+
+~ new/api.yml  Test 1
+
+~   GET /pets  [breaking]
+      Responses
+        200  OK
+          application/json  pet
+-           name  string  [breaking: property removed]
++           nickname  string
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.
+--- stderr
+"
+`;
+
+exports[`file selection and pairing > YAML in a folder that is not OpenAPI and does not parse is skipped 1`] = `
+"exit code: 0
+--- stdout
+Comparing old → new
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.
+--- stderr
+"
+`;
+
+exports[`file selection and pairing > folders pair files by their path below the folder, and skip shared schema files 1`] = `
+"exit code: 1
+--- stdout
+Comparing old → new
+
++ new/orders.yml (new file)  Test 1
+
++   GET /orders  listPets  [added]
++     Responses
++       200  OK
+
+~ new/pets.yml  Test 1
+
+~   GET /pets  listPets  [breaking]
++     Request
++       Query parameters
++         limit  integer  required  [breaking: required query parameter added (client sends)]
+      Responses
+        200  OK
+
+- old/users.yml (deleted)  Test 1
+
+-   GET /users  listPets  [breaking: endpoint removed]
+-     Responses
+-       200  OK
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 1 added, 1 removed, 0 unchanged.
+Result: breaking changes found.
+--- stderr
+"
+`;
+
+exports[`file selection and pairing > glob patterns select files; the pattern folder is the pairing root 1`] = `
+"exit code: 1
+--- stdout
+Comparing old/specs/*.yml → specs/*.yml
+
+~ specs/api.yml  Test 1
+
+~   GET /pets  listPets  [breaking]
++     Request
++       Query parameters
++         limit  integer  required  [breaking: required query parameter added (client sends)]
+      Responses
+        200  OK
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.
+--- stderr
+"
+`;
+
+exports[`file selection and pairing > two single files pair even when their names differ 1`] = `
+"exit code: 1
+--- stdout
+Comparing v1.yml → v2.yml
+
+~ v2.yml  Test 1
+
+~   GET /pets  listPets  [breaking]
++     Request
++       Query parameters
++         limit  integer  required  [breaking: required query parameter added (client sends)]
+      Responses
+        200  OK
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: breaking changes found.
+--- stderr
+"
+`;
+
+exports[`output > an unchanged document with warnings still shows its warnings 1`] = `
+"exit code: 0
+--- stdout
+Comparing old.yml → new.yml
+
+  new.yml  Test 1
+    warning: Unresolved $ref "missing.yml" in new.yml (missing.yml: file not found)
+    warning: base: Unresolved $ref "missing.yml" in old.yml (missing.yml: file not found)
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.
+--- stderr
+"
+`;
+
+exports[`output > explode: false and default: false show as badges 1`] = `
+"exit code: 0
+--- stdout
+Comparing old.yml → new.yml
+
+~ new.yml  Test 1
+
+~   GET /a  [changed]
+      Request
+        Query parameters
+          ids  array[string]  explode: false
+          all  boolean  default: false
++         x  any
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 0 unchanged.
+Result: no breaking changes.
+--- stderr
+"
+`;
+
+exports[`output > unchanged endpoints show only with --all 1`] = `
+"exit code: 0
+--- stdout
+Comparing old.yml → new.yml
+
+~ new.yml  Test 1
+
+~   GET /b  [changed]
+~     description: (none) → B
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.
+--- stderr
+"
+`;
+
+exports[`output > unchanged endpoints show only with --all 2`] = `
+"exit code: 0
+--- stdout
+Comparing old.yml → new.yml
+
+~ new.yml  Test 1
+
+    GET /a
+
+~   GET /b  [changed]
+~     description: (none) → B
+
+Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 1 unchanged.
+Result: no breaking changes.
+--- stderr
+"
+`;

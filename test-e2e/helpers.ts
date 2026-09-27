@@ -25,6 +25,19 @@ export async function runLocus(args: string[], cwd: string, color: ColorLevel = 
     return result;
 }
 
+/**
+ * A run as one text block for a snapshot: the exit code, stdout, and stderr.
+ * `tmp` (a temporary folder) becomes `<tmp>`, so the snapshot is the same on every machine.
+ */
+export function transcript(result: RunResult, tmp?: string): string {
+    const text = `exit code: ${result.code}\n--- stdout\n${result.stdout}--- stderr\n${result.stderr}`;
+    if (tmp === undefined) {
+        return text;
+    }
+    const variants = [tmp, tmp.replace(/\\/g, '/')];
+    return variants.reduce((out, path) => out.split(path).join('<tmp>'), text).replace(/<tmp>[^\s]*/g, (path) => path.replace(/\\/g, '/'));
+}
+
 /** Write files below `root`. Keys are relative paths. */
 export async function writeFiles(root: string, files: Record<string, string>): Promise<void> {
     for (const [name, text] of Object.entries(files)) {

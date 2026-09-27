@@ -1,0 +1,71 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`--base selects another ref, and a plain path that is new at that ref counts as added 1`] = `
+"exit code: 0
+--- stdout
+Comparing main → working tree
+
++ specs/orders.yml (new file)  Test 1
+
++   GET /orders  [added]
++     Responses
++       200  OK
+
+Endpoints: 0 changed with breaking changes, 0 changed compatibly, 1 added, 0 removed, 1 unchanged.
+Run with --all to show the unchanged endpoints.
+Result: no breaking changes.
+--- stderr
+"
+`;
+
+exports[`an unknown ref is an input error 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: unknown git ref "nope". Fetch it first (for example: git fetch origin main), or pass another ref with --base.
+"
+`;
+
+exports[`compares the working tree with origin/main, following $refs into files outside the pattern 1`] = `
+"exit code: 1
+--- stdout
+Comparing origin/main → working tree
+
++ specs/orders.yml (new file)  Test 1
+
++   GET /orders  [added]
++     Responses
++       200  OK
+
+~ specs/pets.yml  Test 1
+
+~   GET /pets  listPets  [breaking]
+      Request
+        Query parameters
+          limit  integer
++         owner  any  required  [breaking: required query parameter added (client sends)]
+      Responses
+        200  OK
+          application/json  pet
+            name  string
++           age  integer
+
+- specs/users.yml (deleted)  Test 1
+
+-   GET /users  [breaking: endpoint removed]
+-     Responses
+-       200  OK
+
+Endpoints: 1 changed with breaking changes, 0 changed compatibly, 1 added, 1 removed, 0 unchanged.
+Result: breaking changes found.
+--- stderr
+"
+`;
+
+exports[`outside a git repository, git mode is an input error 1`] = `
+"exit code: 2
+--- stdout
+--- stderr
+error: <tmp> is not inside a git repository. Use --source to compare local files.
+"
+`;

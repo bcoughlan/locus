@@ -260,8 +260,8 @@ class ConsoleRenderer {
             `${e.unchanged} unchanged`,
         ];
         this.lines.push(`Endpoints: ${parts.join(', ')}.`);
-        // Changes to document facts (servers, version) are outside the endpoint counts.
-        const documents = report.documents.filter((doc) => doc.info.impact !== undefined);
+        // Changes to the facts of a document on both sides (servers, version) are outside the endpoint counts.
+        const documents = report.documents.filter((doc) => doc.base !== undefined && doc.head !== undefined && doc.info.impact !== undefined);
         if (documents.length > 0) {
             const breaking = documents.filter((doc) => doc.info.impact === 'breaking').length;
             this.lines.push(`Document information: ${documents.length} changed${breaking > 0 ? `, ${breaking} with breaking changes` : ''}.`);
