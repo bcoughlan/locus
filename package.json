@@ -1,0 +1,57 @@
+{
+  "name": "locus-cli",
+  "version": "0.1.0",
+  "description": "Toolbox for validating and comparing OpenAPI changes.",
+  "keywords": [
+    "openapi",
+    "diff",
+    "breaking-changes",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "Barry Coughlan",
+  "type": "module",
+  "engines": {
+    "node": ">=24.8.0"
+  },
+  "bin": {
+    "locus": "bin/run.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:unit": "vitest run src",
+    "test:e2e": "vitest run test-e2e",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "chalk": "^6.0.0",
+    "commander": "^15.0.0",
+    "tmp-promise": "^3.0.3",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  }
+}

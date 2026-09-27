@@ -1,0 +1,20 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the git e2e test and `locus diff --base` need history
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm run check
