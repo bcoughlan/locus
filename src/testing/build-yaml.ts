@@ -21,7 +21,7 @@ export async function buildYaml(yaml: string, files: Record<string, string> = {}
         },
     });
     await store.loadWithRefs(ROOT);
-    return buildDocument(store, ROOT, detectVersion(store.document(ROOT), ROOT)!);
+    return buildDocument(store, ROOT, detectVersion(store.document(ROOT).value, ROOT)!);
 }
 
 /** A 3.1 document with `paths` given as YAML (indented under `paths:`) and optional top-level YAML. */

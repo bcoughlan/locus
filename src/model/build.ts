@@ -3,27 +3,22 @@
  * and a table of shared schema definitions.
  *
  * Every object read here can be a `$ref`, possibly into another file, so each
- * read goes through {@link DocumentStore.deref} with the file that holds the
- * reference. Each object also carries its JSON pointer, which becomes the
- * `source` of its node. Untrusted input: malformed parts are skipped, never
- * thrown on.
+ * read goes through {@link deref}. Each value is {@link Located}: its place
+ * becomes the `source` of its node. Untrusted input: malformed parts are
+ * skipped, never thrown on.
  */
 import type { DocumentStore } from '../load/documents.ts';
-import { appendPointer } from '../load/json-pointer.ts';
+import type { Located } from '../load/located.ts';
 import type { OasVersion } from '../load/version.ts';
 import { defaultExplode, defaultStyle } from '../oas/serialization.ts';
 import { HttpMethods } from '../oas/types.ts';
 import { asObject, compact, getArray, getBoolean, getString, getStringArray, getText } from '../util.ts';
-import { located, schemaNode } from './schema.ts';
-import type { BuildContext, Located, SchemaScope } from './schema.ts';
-import type { Attrs, Direction, DocumentModel, JsonValue, Source, ViewNode } from './tree.ts';
+import { follow, schemaNode } from './schema.ts';
+import type { BuildContext, SchemaScope } from './schema.ts';
+import type { Attrs, Direction, DocumentModel, JsonValue, ViewNode } from './tree.ts';
 
-/** An object read from a document, with the file and the JSON pointer where it is. */
-interface Loc {
-    value: Record<string, unknown>;
-    file: string;
-    pointer: string;
-}
+/** An object read from a document, with its place. */
+type Loc = Located<Record<string, unknown>>;
 
 /** Operation context: the directions of its request and response parts. */
 interface OperationScope {
@@ -46,8 +41,8 @@ const IGNORED_HEADER_PARAMETERS = new Set(['accept', 'content-type', 'authorizat
 
 /** Build the view trees of the document in `file`. The store must hold the file and its references. */
 export function buildDocument(store: DocumentStore, file: string, version: OasVersion): DocumentModel {
-    const ctx: BuildContext = { store, rootFile: file, family: version.family, warnings: new Set(), schemas: new Map() };
-    const root = asObject(store.document(file)) ?? {};
+    const ctx: BuildContext = { store, root: store.document(file), family: version.family, warnings: new Set(), schemas: new Map() };
+    const root = asObject(ctx.root.value) ?? {};
     const info = asObject(root.info) ?? {};
     const scope: OperationScope = { request: 'request', response: 'response', defaultSecurity: root.security };
     const flipped: OperationScope = { request: 'response', response: 'request', defaultSecurity: root.security };
@@ -65,12 +60,12 @@ export function buildDocument(store: DocumentStore, file: string, version: OasVe
             servers: serverUrls(root.servers),
         }),
         children: [],
-        source: { file, pointer: '#/info' },
+        source: ctx.root.at('info').source,
     };
 
     const pathItems = (container: string) =>
-        entries(root[container]).flatMap(([name, raw]) => {
-            const item = deref(ctx, raw, file, appendPointer('#', container, name));
+        entries(ctx.root.at(container)).flatMap(([name, raw]) => {
+            const item = deref(ctx, raw);
             return item === undefined ? [] : [{ name, item }];
         });
 
@@ -87,13 +82,13 @@ export function buildDocument(store: DocumentStore, file: string, version: OasVe
 function pathItemOperations(ctx: BuildContext, path: string, item: Loc, scope: OperationScope): ViewNode[] {
     const operations: ViewNode[] = [];
     for (const method of HttpMethods) {
-        const op = deref(ctx, item.value[method], item.file, appendPointer(item.pointer, method));
+        const op = deref(ctx, item.at(method));
         if (op !== undefined) {
             operations.push(buildOperation(ctx, method, path, item, op, scope));
         }
     }
-    for (const [method, raw] of Object.entries(asObject(item.value.additionalOperations) ?? {})) {
-        const op = deref(ctx, raw, item.file, appendPointer(item.pointer, 'additionalOperations', method));
+    for (const [method, raw] of item.at('additionalOperations').entries()) {
+        const op = deref(ctx, raw);
         if (op !== undefined) {
             operations.push(buildOperation(ctx, method, path, item, op, scope));
         }
@@ -121,7 +116,7 @@ function buildOperation(ctx: BuildContext, method: string, path: string, item: L
         section('callbacks', 'Callbacks', callbackNodes(ctx, op, scope), scope.request),
     ].filter((node): node is ViewNode => node !== undefined);
 
-    return { kind: 'operation', key: `${upper} ${path}`, label: `${upper} ${path}`, direction: scope.request, attrs, children: sections, source: sourceOf(op) };
+    return { kind: 'operation', key: `${upper} ${path}`, label: `${upper} ${path}`, direction: scope.request, attrs, children: sections, source: op.source };
 }
 
 function section(key: string, label: string, children: ViewNode[], direction: Direction = 'request'): ViewNode | undefined {
@@ -132,8 +127,7 @@ function section(key: string, label: string, children: ViewNode[], direction: Di
 
 /** One node per alternative security requirement, each with a node per scheme. */
 function securityNodes(ctx: BuildContext, requirements: unknown, direction: Direction): ViewNode[] {
-    const root = asObject(ctx.store.document(ctx.rootFile)) ?? {};
-    const schemes = asObject(asObject(root.components)?.securitySchemes) ?? {};
+    const schemes = ctx.root.at('components', 'securitySchemes');
     return getArray(requirements).flatMap((raw) => {
         const requirement = asObject(raw);
         if (requirement === undefined) {
@@ -142,13 +136,13 @@ function securityNodes(ctx: BuildContext, requirements: unknown, direction: Dire
         const names = Object.keys(requirement);
         const key = names.length === 0 ? 'none' : [...names].sort().join(' + ');
         const label = names.length === 0 ? 'none (anonymous access)' : names.join(' + ');
-        const children = names.map((name) => securitySchemeNode(ctx, name, schemes[name], requirement[name], direction));
+        const children = names.map((name) => securitySchemeNode(ctx, name, schemes.at(name), requirement[name], direction));
         return [{ kind: 'securityRequirement', key, label, direction, attrs: {}, children }];
     });
 }
 
-function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scopes: unknown, direction: Direction): ViewNode {
-    const scheme = deref(ctx, raw, ctx.rootFile, appendPointer('#', 'components', 'securitySchemes', name));
+function securitySchemeNode(ctx: BuildContext, name: string, raw: Located, scopes: unknown, direction: Direction): ViewNode {
+    const scheme = deref(ctx, raw);
     const s = scheme?.value ?? {};
     const attrs = compact<Attrs>({
         schemeType: getString(s.type),
@@ -164,18 +158,17 @@ function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scope
         unresolved: scheme === undefined ? `#/components/securitySchemes/${name}` : undefined,
     });
     // One child per OAuth flow, with its URLs. The scope descriptions are documentation, so they stay out.
-    const flows = entries(s.flows).map(([flowName, rawFlow]): ViewNode => {
-        const flow = asObject(rawFlow) ?? {};
+    const flows = (scheme === undefined ? [] : entries(scheme.at('flows'))).map(([flowName, loc]): ViewNode => {
+        const flow = asObject(loc.value) ?? {};
         const urls = compact<Attrs>({
             authorizationUrl: getString(flow.authorizationUrl),
             deviceAuthorizationUrl: getString(flow.deviceAuthorizationUrl),
             tokenUrl: getString(flow.tokenUrl),
             refreshUrl: getString(flow.refreshUrl),
         });
-        const source = scheme === undefined ? undefined : { file: scheme.file, pointer: appendPointer(scheme.pointer, 'flows', flowName) };
-        return { kind: 'oauthFlow', key: flowName, label: flowName, direction, attrs: urls, children: [], source };
+        return { kind: 'oauthFlow', key: flowName, label: flowName, direction, attrs: urls, children: [], source: loc.source };
     });
-    return { kind: 'securityScheme', key: name, label: name, direction, attrs, children: flows, source: scheme && sourceOf(scheme) };
+    return { kind: 'securityScheme', key: name, label: name, direction, attrs, children: flows, source: scheme?.source };
 }
 
 // --- Request ----------------------------------------------------------------
@@ -183,19 +176,19 @@ function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scope
 function requestNodes(ctx: BuildContext, path: string, item: Loc, op: Loc, direction: Direction): ViewNode[] {
     const parameters = new Map<string, Loc>();
     for (const holder of [item, op]) {
-        getArray(holder.value.parameters).forEach((raw, i) => {
-            const param = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'parameters', i));
+        for (const raw of holder.at('parameters').items()) {
+            const param = deref(ctx, raw);
             const name = getString(param?.value.name);
             const location = getString(param?.value.in);
             if (param === undefined || name === undefined || location === undefined) {
-                return;
+                continue;
             }
             if (location === 'header' && IGNORED_HEADER_PARAMETERS.has(name.toLowerCase())) {
-                return;
+                continue;
             }
             // An operation parameter overrides a path item parameter with the same name and location.
             parameters.set(`${location}:${location === 'header' ? name.toLowerCase() : name}`, param);
-        });
+        }
     }
 
     const groups: ViewNode[] = [];
@@ -209,7 +202,7 @@ function requestNodes(ctx: BuildContext, path: string, item: Loc, op: Loc, direc
         }
     }
 
-    const body = deref(ctx, op.value.requestBody, op.file, appendPointer(op.pointer, 'requestBody'));
+    const body = deref(ctx, op.at('requestBody'));
     if (body !== undefined) {
         groups.push({
             kind: 'requestBody',
@@ -218,7 +211,7 @@ function requestNodes(ctx: BuildContext, path: string, item: Loc, op: Loc, direc
             direction,
             attrs: compact({ required: body.value.required === true ? true : undefined, description: getText(body.value.description) }),
             children: mediaTypeNodes(ctx, body, direction),
-            source: sourceOf(body),
+            source: body.source,
         });
     }
     return groups;
@@ -240,7 +233,7 @@ function parameterNode(ctx: BuildContext, param: Loc, pathNames: string[], direc
         allowEmptyValue: p.allowEmptyValue === true ? true : undefined,
         allowReserved: p.allowReserved === true ? true : undefined,
         example: p.example as JsonValue | undefined,
-        examples: exampleValues(ctx, p.examples, param),
+        examples: exampleValues(ctx, param.at('examples')),
     };
     return valueNode(ctx, 'parameter', key, name, param, own, direction);
 }
@@ -264,35 +257,34 @@ function serialization(p: Record<string, unknown>, location: string): Attrs {
  * header itself, not its schema.
  */
 function valueNode(ctx: BuildContext, kind: 'parameter' | 'header', key: string, label: string, holder: Loc, own: Attrs, direction: Direction): ViewNode {
-    let schema: Located | undefined =
-        holder.value.schema === undefined ? undefined : located(holder.value.schema, holder.file, appendPointer(holder.pointer, 'schema'));
-    const [content] = Object.entries(asObject(holder.value.content) ?? {});
+    let schema: Located | undefined = holder.value.schema === undefined ? undefined : holder.at('schema');
+    const [content] = holder.at('content').entries();
     if (schema === undefined && content !== undefined) {
         const [mediaType, raw] = content;
         own.contentType = mediaType;
-        const media = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'content', mediaType));
+        const media = deref(ctx, raw);
         if (media?.value.schema !== undefined) {
-            schema = located(media.value.schema, media.file, appendPointer(media.pointer, 'schema'));
+            schema = media.at('schema');
         }
     }
     const node = schemaNode(kind, key, label, schema === undefined ? [] : [schema], schemaScope(direction), ctx, compact(own));
-    return { ...node, source: sourceOf(holder) };
+    return { ...node, source: holder.source };
 }
 
 // --- Responses --------------------------------------------------------------
 
 function responseNodes(ctx: BuildContext, op: Loc, direction: Direction): ViewNode[] {
-    return entries(op.value.responses)
+    return entries(op.at('responses'))
         .sort(([a], [b]) => compareStatusCodes(a, b))
         .flatMap(([code, raw]) => {
-            const response = deref(ctx, raw, op.file, appendPointer(op.pointer, 'responses', code));
+            const response = deref(ctx, raw);
             if (response === undefined) {
                 return [];
             }
-            const headers = Object.entries(asObject(response.value.headers) ?? {})
+            const headers = response.at('headers').entries()
                 .filter(([name]) => name.toLowerCase() !== 'content-type')
                 .flatMap(([name, rawHeader]) => {
-                    const header = deref(ctx, rawHeader, response.file, appendPointer(response.pointer, 'headers', name));
+                    const header = deref(ctx, rawHeader);
                     return header === undefined ? [] : [headerNode(ctx, name, header, direction)];
                 });
             const children: ViewNode[] = [];
@@ -307,7 +299,7 @@ function responseNodes(ctx: BuildContext, op: Loc, direction: Direction): ViewNo
                 direction,
                 attrs: compact({ summary: getText(response.value.summary), description: getText(response.value.description) }),
                 children,
-                source: sourceOf(response),
+                source: response.source,
             };
             return [node];
         });
@@ -322,7 +314,7 @@ function headerNode(ctx: BuildContext, name: string, header: Loc, direction: Dir
         description: getText(h.description),
         ...serialization(h, 'header'),
         example: h.example as JsonValue | undefined,
-        examples: exampleValues(ctx, h.examples, header),
+        examples: exampleValues(ctx, header.at('examples')),
     };
     return valueNode(ctx, 'header', name.toLowerCase(), name, header, own, direction);
 }
@@ -346,31 +338,30 @@ export function compareStatusCodes(a: string, b: string): number {
 /** One node per media type of a `content` map (request body or response). */
 function mediaTypeNodes(ctx: BuildContext, holder: Loc, direction: Direction): ViewNode[] {
     const scope = schemaScope(direction);
-    return Object.entries(asObject(holder.value.content) ?? {}).flatMap(([mediaType, raw]) => {
-        const media = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'content', mediaType));
+    return holder.at('content').entries().flatMap(([mediaType, raw]) => {
+        const media = deref(ctx, raw);
         if (media === undefined) {
             return [];
         }
         const m = media.value;
         const own = compact<Attrs>({
             example: m.example as JsonValue | undefined,
-            examples: exampleValues(ctx, m.examples, media),
+            examples: exampleValues(ctx, media.at('examples')),
         });
-        const schemas = m.schema === undefined ? [] : [located(m.schema, media.file, appendPointer(media.pointer, 'schema'))];
-        const node = { ...schemaNode('mediaType', mediaType.toLowerCase(), mediaType, schemas, scope, ctx, own), source: sourceOf(media) };
+        const schemas = m.schema === undefined ? [] : [media.at('schema')];
+        const node = { ...schemaNode('mediaType', mediaType.toLowerCase(), mediaType, schemas, scope, ctx, own), source: media.source };
         if (m.itemSchema !== undefined) {
             // A 3.2 sequential media type: one schema per item of the stream.
-            const items = [located(m.itemSchema, media.file, appendPointer(media.pointer, 'itemSchema'))];
-            node.children = [...node.children, schemaNode('items', 'itemSchema', 'each item', items, scope, ctx)];
+            node.children = [...node.children, schemaNode('items', 'itemSchema', 'each item', [media.at('itemSchema')], scope, ctx)];
         }
         return [node];
     });
 }
 
 /** Named examples with their values. The model shows the names and compares the values. */
-function exampleValues(ctx: BuildContext, examples: unknown, holder: Loc): Record<string, JsonValue> | undefined {
-    const list = Object.entries(asObject(examples) ?? {}).map(([name, raw]) => {
-        const example = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'examples', name))?.value ?? {};
+function exampleValues(ctx: BuildContext, examples: Located): Record<string, JsonValue> | undefined {
+    const list = examples.entries().map(([name, raw]) => {
+        const example = deref(ctx, raw)?.value ?? {};
         const value = example.dataValue ?? example.value ?? example.serializedValue ?? example.externalValue ?? null;
         return [name, value as JsonValue] as const;
     });
@@ -382,16 +373,16 @@ function exampleValues(ctx: BuildContext, examples: unknown, holder: Loc): Recor
 /** Callbacks: the API sends the callback request, so the directions flip. */
 function callbackNodes(ctx: BuildContext, op: Loc, scope: OperationScope): ViewNode[] {
     const flipped: OperationScope = { request: scope.response, response: scope.request, defaultSecurity: undefined };
-    return Object.entries(asObject(op.value.callbacks) ?? {}).flatMap(([name, raw]) => {
-        const callback = deref(ctx, raw, op.file, appendPointer(op.pointer, 'callbacks', name));
+    return op.at('callbacks').entries().flatMap(([name, raw]) => {
+        const callback = deref(ctx, raw);
         if (callback === undefined) {
             return [];
         }
-        const operations = entries(callback.value).flatMap(([expression, rawItem]) => {
-            const item = deref(ctx, rawItem, callback.file, appendPointer(callback.pointer, expression));
+        const operations = entries(callback).flatMap(([expression, rawItem]) => {
+            const item = deref(ctx, rawItem);
             return item === undefined ? [] : pathItemOperations(ctx, expression, item, flipped);
         });
-        const node: ViewNode = { kind: 'callback', key: name, label: name, direction: flipped.request, attrs: {}, children: operations, source: sourceOf(callback) };
+        const node: ViewNode = { kind: 'callback', key: name, label: name, direction: flipped.request, attrs: {}, children: operations, source: callback.source };
         return [node];
     });
 }
@@ -399,36 +390,31 @@ function callbackNodes(ctx: BuildContext, op: Loc, scope: OperationScope): ViewN
 // --- Helpers ----------------------------------------------------------------
 
 /**
- * Resolve a possibly-referenced object at `pointer` in `file`. `undefined`
- * when absent, unresolved, or not an object. The result carries the file and
- * pointer of the target. A `summary` or `description` next to the `$ref`
- * overrides the one of the target (3.1 Reference Object).
+ * Resolve a possibly-referenced object. `undefined` when absent, unresolved,
+ * or not an object. The result has the place of the target. A `summary` or
+ * `description` next to the `$ref` overrides the one of the target (3.1
+ * Reference Object).
  */
-function deref(ctx: BuildContext, raw: unknown, file: string, pointer: string): Loc | undefined {
-    if (raw === undefined) {
+function deref(ctx: BuildContext, loc: Located): Loc | undefined {
+    if (loc.value === undefined) {
         return undefined;
     }
-    const target = ctx.store.deref(raw, file);
-    if (target.unresolved !== undefined) {
-        ctx.warnings.add(`Unresolved $ref "${target.unresolved}" in ${ctx.store.display(file)}${target.reason ? ` (${target.reason})` : ''}`);
+    const resolved = follow(ctx, loc);
+    if (resolved.unresolved !== undefined) {
         return undefined;
     }
-    const value = asObject(target.value);
+    const value = asObject(resolved.target.value);
     if (value === undefined) {
         return undefined;
     }
-    const reference = asObject(raw);
-    const overrides = target.key === undefined ? {} : compact({ summary: reference?.summary, description: reference?.description });
-    return { value: { ...value, ...overrides }, file: target.file, pointer: target.pointer ?? pointer };
-}
-
-function sourceOf(loc: Loc): Source {
-    return { file: loc.file, pointer: loc.pointer };
+    const reference = asObject(loc.value);
+    const overrides = resolved.name === undefined ? {} : compact({ summary: reference?.summary, description: reference?.description });
+    return resolved.target.with({ ...value, ...overrides });
 }
 
 /** The entries of an object map, without specification extensions (`x-*`). */
-function entries(value: unknown): [string, unknown][] {
-    return Object.entries(asObject(value) ?? {}).filter(([key]) => !key.startsWith('x-'));
+function entries(loc: Located): [string, Located][] {
+    return loc.entries().filter(([key]) => !key.startsWith('x-'));
 }
 
 function schemaScope(direction: Direction): SchemaScope {

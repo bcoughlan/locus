@@ -150,3 +150,24 @@ Reflection:
 
 - A correctness fix can change the output size. I now run the Stripe diff after each change to the renderer or the impact logic, and I compare the line count, not only the time.
 - A large test spec is part of the test suite in spirit. A committed snapshot test now covers the large-endpoint rule.
+
+## M9 Located values
+
+The user asked for lower-level primitives that make the code simpler, with the same or better performance.
+
+Result:
+
+- `Located` (`src/load/located.ts`) is a value with its file and JSON pointer. `at()` steps to a child. The pointer text is built on first use.
+- `Located` replaced the `Loc` type of `build.ts`, the `Located` interface of `schema.ts`, the `Target` type of the store, and the pointer helpers. `json-pointer.ts` is gone.
+- `DocumentStore.resolve(loc)` replaced `deref(node, file)`. It returns the target as a `Located`, or the reference that did not resolve.
+- One `follow()` function in the model resolves references and records the warning.
+- The diff sets no impacts. `settleImpacts()` sets all of them, with one walk of each tree per round.
+- `npm run docs:guide` downloads a pinned d2 release on first use and checks its SHA-256.
+- All snapshots and the Stripe output stayed byte-identical. Build time and memory stayed the same. The diff stage got about 10% faster.
+
+Reflection:
+
+- Before the M8 review fixed `appendPointer`, pointer work was half of the build time. After that fix, the primitive gave no speed gain. Its gain is simplicity: 65 calls of pointer helpers are gone, and each build function takes one place instead of a value, a file, and a pointer.
+- The first version of `Located` built its `id` on each call and allocated an extra object per step. The memory peak of the build was then 20% higher. A cached `id` and two plain fields fixed it. Next time, I measure a new primitive on the large spec before I use it everywhere.
+- Timings taken while another agent ran tests were off by a factor of five. I now compare the old and the new code in alternating runs on a quiet machine.
+- Decision: tweak, no re-implementation.

@@ -63,40 +63,36 @@ export function diffDocument(id: string, base: DocumentSide | undefined, head: D
 }
 
 /**
- * Set the final `impact` of every node. During the diff, a definition in a
- * reference cycle can finish before the definitions it depends on, so its
- * impact misses their changes. Here, definition impacts rise until nothing
- * changes (they only go up: none, compatible, breaking). Then each node takes
- * the worst of its own change, its children, and its definition.
+ * Set the `impact` of every node: the worst of its own change, its children,
+ * and its definition. The diff itself sets no impacts, because a definition
+ * in a reference cycle can finish before the definitions it depends on. So
+ * the definitions are assigned again until no impact changes. Impacts only
+ * go up (none, compatible, breaking), so this ends. Then the roots follow.
  */
 function settleImpacts(ctx: DiffContext, roots: DiffNode[]): void {
-    const definitions = [...ctx.schemas.values()];
-    const impactOf = (node: DiffNode): Severity | undefined => {
+    const assign = (node: DiffNode): Severity | undefined => {
         let impact = node.status === 'unchanged' ? undefined : node.verdict?.severity;
         for (const child of node.children) {
-            impact = maxSeverity(impact, impactOf(child));
+            impact = maxSeverity(impact, assign(child));
         }
         if (node.ref !== undefined) {
             impact = maxSeverity(impact, ctx.schemas.get(node.ref)?.impact);
         }
         // `not` reverses the direction rules, so any change below it is breaking.
-        return node.kind === 'not' && impact !== undefined ? 'breaking' : impact;
+        node.impact = node.kind === 'not' && impact !== undefined ? 'breaking' : impact;
+        return node.impact;
     };
+    const definitions = [...ctx.schemas.values()];
     for (let changed = true; changed; ) {
         changed = false;
         for (const definition of definitions) {
-            const impact = impactOf(definition);
-            if (impact !== definition.impact && maxSeverity(impact, definition.impact) === impact) {
-                definition.impact = impact;
+            const before = definition.impact;
+            if (assign(definition) !== before) {
                 changed = true;
             }
         }
     }
-    const assign = (node: DiffNode): void => {
-        node.children.forEach(assign);
-        node.impact = impactOf(node);
-    };
-    [...roots, ...definitions].forEach(assign);
+    roots.forEach(assign);
 }
 
 /** Head warnings, then base warnings that the head does not repeat, marked as such. */
@@ -140,14 +136,12 @@ function diffMatched(base: ViewNode, head: ViewNode, ctx: DiffContext): DiffNode
         changes = changes.filter((change) => change.name !== 'nullable');
     }
     const own = changes.reduce<Severity | undefined>((max, change) => maxSeverity(max, change.severity), undefined);
-    const inside = ref === undefined ? undefined : ctx.schemas.get(ref)?.impact;
     const node: DiffNode = {
         ...copy(head, changes.length > 0 ? 'changed' : 'unchanged', children),
         verdict: own === undefined ? undefined : { severity: own },
         changes,
         ref,
         source: { base: base.source, head: head.source },
-        impact: children.reduce((max, child) => maxSeverity(max, child.impact), maxSeverity(own, inside)),
     };
     // `not` reverses the meaning of everything inside it, so the directional rules do not apply.
     return head.kind === 'not' ? allBreaking(node) : node;
@@ -156,7 +150,7 @@ function diffMatched(base: ViewNode, head: ViewNode, ctx: DiffContext): DiffNode
 /**
  * The diff of two schema definitions, by id in the context's table. Each pair
  * is compared once. A reference cycle finds the id while the diff is still in
- * progress; the enclosing node carries the impact.
+ * progress. {@link settleImpacts} sets the impacts afterwards.
  */
 function definitionDiff(baseRef: string, headRef: string, ctx: DiffContext): string | undefined {
     const base = ctx.base.get(baseRef);
@@ -212,7 +206,6 @@ function allBreaking(node: DiffNode): DiffNode {
         verdict: node.verdict === undefined ? undefined : breaking(node.verdict),
         changes: node.changes.map(breaking),
         children: node.children.map(allBreaking),
-        impact: node.impact === undefined ? undefined : 'breaking',
     };
 }
 
@@ -225,8 +218,8 @@ function diffOneSided(node: ViewNode, status: 'added' | 'removed', parents: Pare
     if (STRUCTURAL_KINDS.has(node.kind)) {
         const own: Parents = status === 'added' ? { head: node } : { base: node };
         const children = node.children.map((child) => diffOneSided(child, status, own, ctx));
-        const impact = children.reduce<Severity | undefined>((max, child) => maxSeverity(max, child.impact), undefined);
-        return { ...copy(node, status, children), verdict: impact === undefined ? undefined : { severity: impact }, impact };
+        const severity = children.reduce<Severity | undefined>((max, child) => maxSeverity(max, child.verdict?.severity), undefined);
+        return { ...copy(node, status, children), verdict: severity === undefined ? undefined : { severity } };
     }
     const verdict = status === 'added' ? classifyAdded(node, parents) : classifyRemoved(node, parents);
     return { ...inherit(node, status, verdict.severity, ctx), verdict };
@@ -239,7 +232,6 @@ function inherit(node: ViewNode, status: 'added' | 'removed', severity: Severity
         ...copy(node, status, node.children.map((child) => inherit(child, status, severity, ctx))),
         verdict,
         ref: node.ref === undefined ? undefined : oneSidedDefinition(node.ref, status, severity, ctx),
-        impact: severity,
     };
 }
 

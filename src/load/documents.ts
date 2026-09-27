@@ -3,40 +3,30 @@
  *
  * Model building is synchronous, so {@link DocumentStore.loadWithRefs} first
  * loads a root document and, transitively, every file that its `$ref`s name.
- * {@link DocumentStore.deref} then resolves references from the cache. A
+ * {@link DocumentStore.resolve} then resolves references from the cache. A
  * reference resolves against the file it appears in, not against the root.
  */
 import { readFile } from 'node:fs/promises';
-import { basename, dirname, extname, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { LineCounter, isAlias, isMap, isNode, isScalar, isSeq, parseDocument } from 'yaml';
 import type { Document as YamlDocument } from 'yaml';
 import { InputError } from '../errors.ts';
 import { refString, tryDecode } from '../util.ts';
-import { getByParts, partsToPointer, pointerToParts } from './json-pointer.ts';
+import { Located, pointerToParts } from './located.ts';
 
-/** The target of a resolved `$ref`, or the node itself when it is not a reference. */
+/** A followed `$ref`: the target, or the value itself when it is not a reference. */
 export interface Resolved {
-    value: unknown;
-    /** Absolute path of the file that holds `value`. */
-    file: string;
-    /** Identity of the target (`<file>#<pointer>`). Set when the node was a reference. */
-    key?: string;
-    /** JSON pointer of the target in `file`, for example `#/components/schemas/Pet`. Set when the node was a reference. */
-    pointer?: string;
-    /** Name of the target: the last pointer token (`Pet` for `#/components/schemas/Pet`), or the file name. */
+    target: Located;
+    /** Name of the first target, for example `Pet` for `#/components/schemas/Pet`. Set when the value was a reference. */
     name?: string;
-    /** The reference that failed to resolve. `value` is then `undefined`. */
-    unresolved?: string;
-    /** Why the file of an unresolved reference did not load. */
-    reason?: string;
+    unresolved?: undefined;
 }
 
-interface Target {
-    value: unknown;
-    file: string;
-    key: string;
-    pointer: string;
-    name: string;
+/** A `$ref` that does not resolve. */
+export interface Unresolved {
+    unresolved: string;
+    /** Why the file of the reference did not load. */
+    reason?: string;
 }
 
 export type ReadText = (path: string) => Promise<string>;
@@ -80,11 +70,11 @@ export function parseRef(ref: string, fromFile: string): { file: string; parts: 
 }
 
 export class DocumentStore {
-    private readonly docs = new Map<string, unknown>();
+    private readonly docs = new Map<string, Located>();
     /** Referenced files that did not load, with the reason. */
     private readonly failures = new Map<string, string>();
     /** Resolved references by `<from file>\0<ref>`. Documents never change after loading. */
-    private readonly targets = new Map<string, Target | undefined>();
+    private readonly targets = new Map<string, Located | undefined>();
     /** Files whose references {@link loadWithRefs} already followed. */
     private readonly walked = new Set<string>();
     /** The text of each loaded file, for {@link lineOf}. */
@@ -103,8 +93,9 @@ export class DocumentStore {
     /** Load and cache one file. Throws {@link InputError} when the file is missing or does not parse. */
     async load(path: string): Promise<unknown> {
         const file = resolve(path);
-        if (this.docs.has(file)) {
-            return this.docs.get(file);
+        const loaded = this.docs.get(file);
+        if (loaded !== undefined) {
+            return loaded.value;
         }
         let text: string;
         try {
@@ -114,7 +105,7 @@ export class DocumentStore {
             throw new InputError(`${this.display(file)}: ${code === 'ENOENT' ? 'file not found' : `cannot read file (${code ?? String(err)})`}`);
         }
         const root = parseSpecText(text, this.display(file));
-        this.docs.set(file, root);
+        this.docs.set(file, Located.root(root, file));
         this.texts.set(file, text);
         return root;
     }
@@ -134,7 +125,7 @@ export class DocumentStore {
                 continue;
             }
             this.walked.add(file);
-            for (const target of externalRefFiles(this.docs.get(file), file)) {
+            for (const target of externalRefFiles(this.docs.get(file)?.value, file)) {
                 if (this.failures.has(target)) {
                     continue;
                 }
@@ -148,59 +139,42 @@ export class DocumentStore {
         }
     }
 
-    /** A loaded document, or `undefined` when the file is not loaded. */
-    document(path: string): unknown {
-        return this.docs.get(resolve(path));
+    /** A loaded file as a whole. Its value is `undefined` when the file is not loaded. */
+    document(path: string): Located {
+        const file = resolve(path);
+        return this.docs.get(file) ?? Located.root(undefined, file);
     }
 
     /**
-     * Follow `node` when it is a `$ref`, through chains of references, to the
-     * target value. A node that is not a reference resolves to itself.
+     * Follow `loc` when it is a `$ref`, through chains of references, to the
+     * target. A value that is not a reference resolves to itself.
      */
-    deref(node: unknown, file: string): Resolved {
-        let current: Resolved = { value: node, file };
+    resolve(loc: Located): Resolved | Unresolved {
+        let target = loc;
         let name: string | undefined;
         const chain = new Set<string>();
-        for (let ref = refString(node); ref !== undefined; ref = refString(current.value)) {
-            const target = this.target(ref, current.file);
-            if (target === undefined || chain.has(target.key)) {
-                const reason = this.failures.get(parseRef(ref, current.file)?.file ?? '');
-                return { value: undefined, file: current.file, unresolved: ref, ...(reason && { reason }) };
+        for (let ref = refString(loc.value); ref !== undefined; ref = refString(target.value)) {
+            const next = this.target(ref, target.file);
+            if (next === undefined || chain.has(next.id)) {
+                const reason = this.failures.get(parseRef(ref, target.file)?.file ?? '');
+                return { unresolved: ref, ...(reason && { reason }) };
             }
-            chain.add(target.key);
-            name ??= target.name;
-            current = target;
+            chain.add(next.id);
+            name ??= next.name;
+            target = next;
         }
-        return name === undefined ? current : { ...current, name };
+        return name === undefined ? { target } : { target, name };
     }
 
     /** Resolve one reference string, without following chains. */
-    private target(ref: string, fromFile: string): Target | undefined {
+    private target(ref: string, fromFile: string): Located | undefined {
         const cacheKey = `${fromFile}\0${ref}`;
         if (!this.targets.has(cacheKey)) {
-            this.targets.set(cacheKey, this.lookup(ref, fromFile));
+            const parsed = parseRef(ref, fromFile);
+            const target = parsed === undefined ? undefined : this.docs.get(parsed.file)?.at(...parsed.parts);
+            this.targets.set(cacheKey, target?.value === undefined ? undefined : target);
         }
         return this.targets.get(cacheKey);
-    }
-
-    private lookup(ref: string, fromFile: string): Target | undefined {
-        const parsed = parseRef(ref, fromFile);
-        if (parsed === undefined || !this.docs.has(parsed.file)) {
-            return undefined;
-        }
-        const { file, parts } = parsed;
-        const value = getByParts(this.docs.get(file), parts);
-        if (value === undefined) {
-            return undefined;
-        }
-        const pointer = parts.length > 0 ? partsToPointer(parts) : '#';
-        return {
-            value,
-            file,
-            key: `${file}${pointer}`,
-            pointer,
-            name: parts.length > 0 ? parts[parts.length - 1] : basename(file, extname(file)),
-        };
     }
 
     /**

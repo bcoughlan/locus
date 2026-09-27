@@ -2,6 +2,8 @@ import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { InputError } from '../errors.ts';
 import { DocumentStore, externalRefFiles, parseRef, parseSpecText } from './documents.ts';
+import type { Resolved } from './documents.ts';
+import { Located } from './located.ts';
 
 /** A store over in-memory files. Keys are paths relative to a virtual root. */
 function memoryStore(files: Record<string, string>): DocumentStore {
@@ -18,6 +20,17 @@ function memoryStore(files: Record<string, string>): DocumentStore {
 }
 
 const at = (name: string) => resolve('/virtual', name);
+
+/** A value placed at the top of `api.yml`, for example a `$ref` object to resolve. */
+const inline = (value: unknown) => Located.root(value, at('api.yml'));
+
+function mustResolve(store: DocumentStore, loc: Located): Resolved {
+    const resolved = store.resolve(loc);
+    if (resolved.unresolved !== undefined) {
+        throw new Error(`Unresolved: ${resolved.unresolved}`);
+    }
+    return resolved;
+}
 
 describe('parseSpecText', () => {
     test('parses YAML and JSON', () => {
@@ -63,19 +76,15 @@ describe('DocumentStore', () => {
     test('resolves local refs and names the target', async () => {
         const store = memoryStore({ 'api.yml': 'components: {schemas: {Pet: {type: object}}}' });
         await store.loadWithRefs(at('api.yml'));
-        const resolved = store.deref({ $ref: '#/components/schemas/Pet' }, at('api.yml'));
-        expect(resolved).toEqual({
-            value: { type: 'object' },
-            file: at('api.yml'),
-            key: `${at('api.yml')}#/components/schemas/Pet`,
-            pointer: '#/components/schemas/Pet',
-            name: 'Pet',
-        });
+        const { target, name } = mustResolve(store, inline({ $ref: '#/components/schemas/Pet' }));
+        expect(target.value).toEqual({ type: 'object' });
+        expect(target.source).toEqual({ file: at('api.yml'), pointer: '#/components/schemas/Pet' });
+        expect(name).toBe('Pet');
     });
 
-    test('a node that is not a reference resolves to itself', async () => {
-        const store = memoryStore({});
-        expect(store.deref({ type: 'string' }, at('api.yml'))).toEqual({ value: { type: 'string' }, file: at('api.yml') });
+    test('a value that is not a reference resolves to itself', async () => {
+        const loc = inline({ type: 'string' });
+        expect(memoryStore({}).resolve(loc)).toEqual({ target: loc });
     });
 
     test('loads referenced files transitively and resolves relative to the referring file', async () => {
@@ -86,22 +95,19 @@ describe('DocumentStore', () => {
         });
         await store.loadWithRefs(at('api.yml'));
 
-        const pet = store.deref({ $ref: 'schemas/pet.yml#/Pet' }, at('api.yml'));
-        expect(pet.file).toBe(at('schemas/pet.yml'));
+        const pet = mustResolve(store, store.document(at('api.yml')).at('schema'));
+        expect(pet.target.file).toBe(at('schemas/pet.yml'));
         expect(pet.name).toBe('Pet');
 
-        const ownerRef = (pet.value as { properties: { owner: unknown } }).properties.owner;
-        const owner = store.deref(ownerRef, pet.file);
-        expect(owner.value).toEqual({ type: 'object' });
+        const owner = mustResolve(store, pet.target.at('properties', 'owner'));
+        expect(owner.target.value).toEqual({ type: 'object' });
         expect(owner.name).toBe('owner');
     });
 
     test('a ref into a missing file is unresolved, with the reason', async () => {
         const store = memoryStore({ 'api.yml': 'schema: {$ref: "missing.yml#/X"}' });
         await store.loadWithRefs(at('api.yml'));
-        expect(store.deref({ $ref: 'missing.yml#/X' }, at('api.yml'))).toEqual({
-            value: undefined,
-            file: at('api.yml'),
+        expect(store.resolve(inline({ $ref: 'missing.yml#/X' }))).toEqual({
             unresolved: 'missing.yml#/X',
             reason: `${at('missing.yml')}: file not found`,
         });
@@ -110,29 +116,31 @@ describe('DocumentStore', () => {
     test('follows chains of refs and keeps the first name', async () => {
         const store = memoryStore({ 'api.yml': 'a: {$ref: "#/b"}\nb: {$ref: "#/c"}\nc: {type: string}' });
         await store.loadWithRefs(at('api.yml'));
-        const resolved = store.deref({ $ref: '#/a' }, at('api.yml'));
-        expect(resolved.value).toEqual({ type: 'string' });
-        expect(resolved.name).toBe('a');
-        expect(resolved.key).toBe(`${at('api.yml')}#/c`);
+        const { target, name } = mustResolve(store, inline({ $ref: '#/a' }));
+        expect(target.value).toEqual({ type: 'string' });
+        expect(name).toBe('a');
+        expect(target.id).toBe(`${at('api.yml')}#/c`);
     });
 
     test('a cycle of pure refs is unresolved instead of looping', async () => {
         const store = memoryStore({ 'api.yml': 'a: {$ref: "#/b"}\nb: {$ref: "#/a"}' });
         await store.loadWithRefs(at('api.yml'));
-        expect(store.deref({ $ref: '#/a' }, at('api.yml')).unresolved).toBe('#/a');
+        expect(store.resolve(inline({ $ref: '#/a' })).unresolved).toBe('#/a');
     });
 
     test('remote and anchor refs are unresolved', async () => {
         const store = memoryStore({ 'api.yml': 'a: {$ref: "https://example.com/pet.yml"}\nPet: {type: object}' });
         await store.loadWithRefs(at('api.yml'));
-        expect(store.deref({ $ref: 'https://example.com/pet.yml' }, at('api.yml')).unresolved).toBe('https://example.com/pet.yml');
-        expect(store.deref({ $ref: '#Pet' }, at('api.yml')).unresolved).toBe('#Pet');
+        expect(store.resolve(inline({ $ref: 'https://example.com/pet.yml' })).unresolved).toBe('https://example.com/pet.yml');
+        expect(store.resolve(inline({ $ref: '#Pet' })).unresolved).toBe('#Pet');
     });
 
     test('decodes escaped pointer tokens', async () => {
         const store = memoryStore({ 'api.yml': 'paths: {"/pets/{id}": {x: 1}}' });
         await store.loadWithRefs(at('api.yml'));
-        expect(store.deref({ $ref: '#/paths/~1pets~1%7Bid%7D' }, at('api.yml')).value).toEqual({ x: 1 });
+        const { target } = mustResolve(store, inline({ $ref: '#/paths/~1pets~1%7Bid%7D' }));
+        expect(target.value).toEqual({ x: 1 });
+        expect(target.pointer).toBe('#/paths/~1pets~1{id}');
     });
 });
 

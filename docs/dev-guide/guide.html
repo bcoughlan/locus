@@ -124,7 +124,10 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
 <ul>
   <li><code>load(path)</code> reads and parses one file. JSON uses <code>JSON.parse</code>. YAML allows merge keys (<code>&lt;&lt;</code>) and duplicate keys.</li>
   <li><code>loadWithRefs(path)</code> also loads every file that the <code>$ref</code>s reach. A file that fails to load becomes a warning, not an error.</li>
-  <li><code>deref(node, file)</code> follows a <code>$ref</code> when asked. It resolves against the file that holds the reference, follows chains, and caches each target.</li>
+  <li>A <code>Located</code> (<code>src/load/located.ts</code>) is a value with its place: the file and the JSON pointer. <code>document(path)</code> gives a whole file as a <code>Located</code>.</li>
+  <li><code>loc.at('paths', '/pets')</code> steps to a child. <code>entries()</code> and <code>items()</code> list the members of an object or an array. Only own properties count, so untrusted keys are safe.</li>
+  <li>The pointer text is built on first use. A node gets it as its <code>source</code>.</li>
+  <li><code>resolve(loc)</code> follows a <code>$ref</code> when asked. It resolves against the file that holds the reference, follows chains, and caches each target. It returns the target as a <code>Located</code>, or the reference that did not resolve.</li>
   <li>Nothing is dereferenced up front. The parsed files keep their <code>$ref</code>s.</li>
   <li><code>lineOf(file, pointer)</code> gives the line of a JSON pointer, for a UI that jumps to the spec.</li>
   <li>Not supported: remote <code>$ref</code>s (<code>https://</code>) and <code>$anchor</code>s. They become warnings.</li>
@@ -203,7 +206,7 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
   <li><code>verdict</code>: severity (breaking or compatible) and a reason.</li>
   <li><code>impact</code>: the worst change in the subtree. It rolls up to the endpoint and the document.</li>
   <li>A subtree includes the definitions that its references point to.</li>
-  <li>In a reference cycle, a definition diff is still in progress when the cycle reaches it. So <code>settleImpacts()</code> runs after the diff and repeats until no impact changes.</li>
+  <li>The diff itself sets no impact. In a reference cycle, a definition diff is still in progress when the cycle reaches it. So <code>settleImpacts()</code> sets every impact after the diff. It repeats the definitions until no impact changes.</li>
   <li>Exit code 1 means some document has impact "breaking".</li>
 </ul>
 

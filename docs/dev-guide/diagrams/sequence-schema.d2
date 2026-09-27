@@ -3,18 +3,18 @@ shape: sequence_diagram
 caller: "caller\n(parameter, body, property)"
 node: "schemaNode()"
 ref: "asReference()"
-store: "DocumentStore.deref()"
+store: "DocumentStore.resolve()"
 def: "definition()"
 table: "ctx.schemas"
 flat: "flatten()"
 kids: "schemaChildren()"
 
-caller -> node: "schema at file + pointer"
+caller -> node: "schema as Located\n(value, file, pointer)"
 node -> ref: 'only a $ref?'
 plain: "a plain reference" {
   ref -> node: 'yes: $ref, docs, nullable'
-  node -> store: "follow the pointer"
-  store -> node: "target: file, pointer, name"
+  node -> store: 'follow the $ref'
+  store -> node: "target Located, name"
   node -> def: "target, direction"
   def -> table: "id known?"
   table -> def: "no: add the node now\n(a cycle finds it)"
