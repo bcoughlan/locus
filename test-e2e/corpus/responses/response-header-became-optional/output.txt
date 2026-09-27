@@ -15,7 +15,7 @@ Comparing base → head
           Headers
 ~           X-Total-Count  integer
               The total number of pets.
-~             required: required → optional  [breaking: header became optional (client receives)]
+~             required → optional  [breaking: header became optional (client receives)]
           application/json  array[Pet]
             id  string  required
             name  string  required

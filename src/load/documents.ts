@@ -81,6 +81,8 @@ export class DocumentStore {
     private readonly failures = new Map<string, string>();
     /** Resolved references by `<from file>\0<ref>`. Documents never change after loading. */
     private readonly targets = new Map<string, Target | undefined>();
+    /** Files whose references {@link loadWithRefs} already followed. */
+    private readonly walked = new Set<string>();
     private readonly readText: ReadText;
     /** How to name a file in messages, for example relative to the current folder. */
     readonly display: (path: string) => string;
@@ -114,15 +116,18 @@ export class DocumentStore {
      */
     async loadWithRefs(path: string): Promise<void> {
         const queue = [resolve(path)];
-        const seen = new Set(queue);
         await this.load(queue[0]);
         while (queue.length > 0) {
             const file = queue.shift()!;
+            // Several root documents often share files. Walk each file's references once per store.
+            if (this.walked.has(file)) {
+                continue;
+            }
+            this.walked.add(file);
             for (const target of externalRefFiles(this.docs.get(file), file)) {
-                if (seen.has(target)) {
+                if (this.failures.has(target)) {
                     continue;
                 }
-                seen.add(target);
                 try {
                     await this.load(target);
                     queue.push(target);

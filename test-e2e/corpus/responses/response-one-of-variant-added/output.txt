@@ -13,17 +13,17 @@ Comparing base → head
       Responses
         200  The pet.
           application/json  one of
-            Dog  Dog
+            Dog  object
               kind  string  required
                 Allowed value: dog
               name  string  required
               barks  boolean
-            Cat  Cat
+            Cat  object
               kind  string  required
                 Allowed value: cat
               name  string  required
               indoor  boolean
-+           Bird  Bird  [breaking: variant Bird added (client receives)]
++           Bird  object  [breaking: variant Bird added (client receives)]
 +             kind  string  required
 +               Allowed value: bird
 +             name  string  required

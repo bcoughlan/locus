@@ -12,7 +12,7 @@ Comparing base → head
           application/json  NewPet
             name  string  required
 ~           tag  string  required
-~             required: optional → required  [breaking: property became required (client sends)]
+~             optional → required  [breaking: property became required (client sends)]
       Responses
         201  The pet was created.
 

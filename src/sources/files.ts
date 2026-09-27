@@ -24,8 +24,9 @@ export interface FilePair<T> {
 }
 
 /** The files that a folder argument stands for. */
-const FOLDER_PATTERN = '**/*.{yml,yaml,json}';
-const SKIPPED_FOLDERS = new Set(['node_modules', '.git']);
+export const FOLDER_PATTERN = '**/*.{yml,yaml,json}';
+/** Folders that a folder argument or a glob never enters. */
+export const SKIPPED_FOLDERS: ReadonlySet<string> = new Set(['node_modules', '.git']);
 
 /**
  * Expand patterns relative to `cwd`. A folder stands for the YAML and JSON
@@ -134,12 +135,13 @@ function commonFolder(folders: string[]): string {
     return common;
 }
 
-function isInside(path: string, folder: string): boolean {
+/** `path` is `folder` or below it. */
+export function isInside(path: string, folder: string): boolean {
     const rel = relative(folder, path);
     return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
-/** `/` separators on every platform. Glob patterns and ids use them. */
-function toPosix(path: string): string {
-    return sep === '/' ? path : path.split(sep).join('/');
+/** `/` separators on every platform. Glob patterns, ids, and git paths use them. */
+export function toPosix(path: string): string {
+    return sep === '/' ? path : path.replace(/\\/g, '/');
 }

@@ -12,7 +12,7 @@ Comparing base → head
         Query parameters
 ~         species  string
             Return only pets of this species.
-~           required: required → optional
+~           required → optional
       Responses
         200  A list of pets.
           application/json  array[Pet]

@@ -13,7 +13,7 @@ Comparing base → head
 ~         format  string  required
             The format of the response.
             Allowed values: full, compact
-~           required: optional → required  [breaking: parameter became required (client sends)]
+~           optional → required  [breaking: parameter became required (client sends)]
       Responses
         200  A list of pets.
           application/json  array[Pet]

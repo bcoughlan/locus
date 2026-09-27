@@ -12,7 +12,7 @@ Comparing base → head
           application/json  NewPet
             name  string  required
 ~           species  string
-~             required: required → optional
+~             required → optional
       Responses
         201  The pet was created.
 

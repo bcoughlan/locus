@@ -12,7 +12,7 @@ Comparing base → head
         Query parameters
 ~         species  string  required
             Return only pets of this species.
-~           required: optional → required  [breaking: parameter became required (client sends)]
+~           optional → required  [breaking: parameter became required (client sends)]
       Responses
         200  A list of pets.
           application/json  array[Pet]

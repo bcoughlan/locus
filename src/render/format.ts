@@ -5,6 +5,7 @@
  */
 import type { AttrChange, DiffNode } from '../diff/report.ts';
 import type { Attrs, JsonValue } from '../model/tree.ts';
+import { canonicalJson } from '../util.ts';
 
 /** A value as short text: strings as they are, everything else as compact JSON. */
 export function formatValue(value: unknown, maxLength = 80): string {
@@ -58,39 +59,53 @@ export function arrayItems<T extends Pick<DiffNode, 'children'>>(node: T): T['ch
     return node.children.find((child) => child.kind === 'items' && child.key === '[]');
 }
 
+/**
+ * The items node to print inside its array's row (`array[Pet]`, with the item
+ * fields below), or `undefined` when the items need a row of their own: they
+ * were added or removed while the array stayed.
+ */
+export function inlineItems(node: DiffNode): DiffNode | undefined {
+    const items = arrayItems(node);
+    return items !== undefined && (items.status === 'unchanged' || items.status === 'changed' || items.status === node.status) ? items : undefined;
+}
+
 /** Short badges for the facts of a node, in display order. */
 export function badges(attrs: Attrs): string[] {
     const out: string[] = [];
-    /** Add a badge for a fact that is present. `false` is a value to show, not an absent fact. */
-    const add = (value: unknown, text: () => string) => {
+    /** A badge for a fact that is present. `false` is a value to show, not an absent fact. */
+    const add = (value: unknown, text: string) => {
         if (value !== undefined) {
-            out.push(text());
+            out.push(text);
         }
     };
-    const flag = (value: boolean | undefined, text: string) => add(value === true ? true : undefined, () => text);
+    const flag = (value: boolean | undefined, text: string) => {
+        if (value === true) {
+            out.push(text);
+        }
+    };
     flag(attrs.required, 'required');
     flag(attrs.deprecated, 'deprecated');
     flag(attrs.readOnly, 'read-only');
     flag(attrs.writeOnly, 'write-only');
-    add(attrs.minimum, () => `>= ${attrs.minimum}`);
-    add(attrs.exclusiveMinimum, () => `> ${attrs.exclusiveMinimum}`);
-    add(attrs.maximum, () => `<= ${attrs.maximum}`);
-    add(attrs.exclusiveMaximum, () => `< ${attrs.exclusiveMaximum}`);
-    add(attrs.multipleOf, () => `multiple of ${attrs.multipleOf}`);
+    add(attrs.minimum, `>= ${attrs.minimum}`);
+    add(attrs.exclusiveMinimum, `> ${attrs.exclusiveMinimum}`);
+    add(attrs.maximum, `<= ${attrs.maximum}`);
+    add(attrs.exclusiveMaximum, `< ${attrs.exclusiveMaximum}`);
+    add(attrs.multipleOf, `multiple of ${attrs.multipleOf}`);
     out.push(...rangeBadges(attrs.minLength, attrs.maxLength, 'characters'));
     out.push(...rangeBadges(attrs.minItems, attrs.maxItems, 'items'));
     out.push(...rangeBadges(attrs.minProperties, attrs.maxProperties, 'properties'));
     flag(attrs.uniqueItems, 'unique items');
-    add(attrs.pattern, () => `pattern ${attrs.pattern}`);
-    add(attrs.contentMediaType, () => `media type ${attrs.contentMediaType}`);
-    add(attrs.contentEncoding, () => `encoding ${attrs.contentEncoding}`);
+    add(attrs.pattern, `pattern ${attrs.pattern}`);
+    add(attrs.contentMediaType, `media type ${attrs.contentMediaType}`);
+    add(attrs.contentEncoding, `encoding ${attrs.contentEncoding}`);
     flag(attrs.additionalProperties === false, 'no additional properties');
-    add(attrs.default, () => `default: ${formatValue(attrs.default)}`);
-    add(attrs.style, () => `style: ${attrs.style}`);
-    add(attrs.explode, () => `explode: ${attrs.explode}`);
+    add(attrs.default, `default: ${formatValue(attrs.default)}`);
+    add(attrs.style, `style: ${attrs.style}`);
+    add(attrs.explode, `explode: ${attrs.explode}`);
     flag(attrs.allowReserved, 'allow reserved');
     flag(attrs.allowEmptyValue, 'allow empty value');
-    add(attrs.contentType, () => `content: ${attrs.contentType}`);
+    add(attrs.contentType, `content: ${attrs.contentType}`);
     return out;
 }
 
@@ -167,23 +182,42 @@ export function flowLabel(attrs: Attrs): string {
     return urls.flatMap(([name, url]) => (url === undefined ? [] : [`${name}: ${url}`])).join('  ');
 }
 
-/** An attribute value in a change line. An absent value shows as `(none)`. */
-export function changeValue(change: AttrChange, side: 'before' | 'after'): string {
-    const value = change[side];
-    if (value === undefined) {
-        return change.name === 'required' ? 'optional' : '(none)';
-    }
+/**
+ * A change of one attribute as text, for example `maximum: 500 → 100` or
+ * `optional → required`. `prefix` names the part of the node, for example `items`.
+ */
+export function describeChange(change: AttrChange, prefix = ''): string {
+    const name = `${prefix}${change.name}`;
     if (change.name === 'required') {
-        return 'required';
-    }
-    if (change.name === 'type') {
-        return (value as string[]).join(' | ');
+        return `${prefix}${change.before ? 'required' : 'optional'} → ${change.after ? 'required' : 'optional'}`;
     }
     if (change.name === 'examples') {
-        return Object.keys(value as Record<string, JsonValue>).join(', ');
+        return `${name}: ${describeExamples(change.before, change.after)}`;
+    }
+    const separator = change.name === 'type' ? ' | ' : ', ';
+    return `${name}: ${changeValue(change.before, separator)} → ${changeValue(change.after, separator)}`;
+}
+
+/** An attribute value in a change line. An absent value shows as `(none)`. */
+function changeValue(value: unknown, separator: string): string {
+    if (value === undefined) {
+        return '(none)';
     }
     if (Array.isArray(value)) {
-        return value.map((item) => formatValue(item, 40)).join(', ');
+        return value.map((item) => formatValue(item, 40)).join(separator);
     }
     return formatValue(value, 60);
+}
+
+/** Which named examples were added, removed, or changed. */
+function describeExamples(before: unknown, after: unknown): string {
+    const b = (before ?? {}) as Record<string, JsonValue>;
+    const a = (after ?? {}) as Record<string, JsonValue>;
+    const names = (filter: (name: string) => boolean, list: Record<string, JsonValue>) => Object.keys(list).filter(filter);
+    const parts = [
+        ['added', names((name) => !(name in b), a)],
+        ['removed', names((name) => !(name in a), b)],
+        ['changed', names((name) => name in b && canonicalJson(a[name]) !== canonicalJson(b[name]), a)],
+    ] as const;
+    return parts.flatMap(([verb, list]) => (list.length === 0 ? [] : [`${verb} ${list.join(', ')}`])).join('; ');
 }

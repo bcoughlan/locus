@@ -4,6 +4,7 @@
  */
 import { createRequire } from 'node:module';
 import { supportsColor } from 'chalk';
+import type { ColorSupport } from 'chalk';
 import { Command, CommanderError, Option } from 'commander';
 import { DEFAULT_BASE, runDiff } from './commands/diff.ts';
 import { InputError } from './errors.ts';
@@ -27,7 +28,7 @@ const { version, description } = createRequire(import.meta.url)('../package.json
  * The color level for stdout. chalk detects the terminal and honors
  * FORCE_COLOR. NO_COLOR (https://no-color.org) turns colors off.
  */
-export function detectColor(env: NodeJS.ProcessEnv, detected: { level: ColorLevel } | false): ColorLevel {
+export function detectColor(env: NodeJS.ProcessEnv, detected: Pick<ColorSupport, 'level'> | false): ColorLevel {
     if (env.NO_COLOR !== undefined && env.NO_COLOR !== '') {
         return 0;
     }

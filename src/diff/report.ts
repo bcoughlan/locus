@@ -85,6 +85,16 @@ export interface DiffReport {
     breaking: boolean;
 }
 
+/** What happened to an endpoint as a whole. The report counts these, and renderers label endpoints with them. */
+export type EndpointOutcome = keyof EndpointCounts;
+
+export function endpointOutcome(endpoint: DiffNode): EndpointOutcome {
+    if (endpoint.status === 'added' || endpoint.status === 'removed') {
+        return endpoint.status;
+    }
+    return endpoint.impact ?? 'unchanged';
+}
+
 const RANK: Record<Severity, number> = { compatible: 1, breaking: 2 };
 
 /** The more severe of two severities. `undefined` means "no change". */

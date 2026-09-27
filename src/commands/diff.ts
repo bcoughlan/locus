@@ -6,7 +6,7 @@ import { renderConsole } from '../render/console.ts';
 import type { ColorLevel } from '../render/console.ts';
 import { expandPatterns } from '../sources/files.ts';
 import type { SpecFile } from '../sources/files.ts';
-import { checkoutRef } from '../sources/git.ts';
+import { byDisplayPath, checkoutRef } from '../sources/git.ts';
 
 export interface DiffCommandOptions {
     /** Git ref of the base version. */
@@ -53,18 +53,11 @@ async function compareWithFolder(head: SpecFile[], patterns: string[], source: s
     return comparison;
 }
 
-/**
- * The head is the working tree. The base is the same patterns at a git ref.
- * The copy mirrors the working tree, so both sides pair by the path relative
- * to the current folder, even when some pattern matches on one side only.
- * The base can be empty: the documents are new.
- */
+/** The head is the working tree. The base is the same patterns at a git ref. The base can be empty: the documents are new. */
 async function compareWithGit(head: SpecFile[], patterns: string[], ref: string, cwd: string): Promise<Comparison> {
     const checkout = await checkoutRef(ref, patterns, cwd);
     try {
-        const base = await expandPatterns(checkout.patterns, checkout.cwd);
-        const byPath = (files: SpecFile[]) => files.map((file) => ({ ...file, id: file.display }));
-        return await compareFiles(byPath(base), byPath(head), { baseLabel: ref, headLabel: 'working tree', cwd: { base: checkout.cwd, head: cwd } });
+        return await compareFiles(checkout.files, byDisplayPath(head), { baseLabel: ref, headLabel: 'working tree', cwd: { base: checkout.cwd, head: cwd } });
     } finally {
         await checkout.cleanup();
     }

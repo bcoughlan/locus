@@ -1,23 +1,12 @@
 /** CLI behavior: arguments, file selection, pairing, exit codes, and color. */
-import { withDir } from 'tmp-promise';
 import { describe, expect, test } from 'vitest';
-import { openapi, runLocus, writeFiles } from './helpers.ts';
+import { inTmp, openapi, runLocus } from './helpers.ts';
 
 const listPets = openapi("  /pets:\n    get:\n      operationId: listPets\n      responses: {'200': {description: OK}}");
 const listPetsWithLimit = openapi(
     "  /pets:\n    get:\n      operationId: listPets\n      parameters: [{name: limit, in: query, required: true, schema: {type: integer}}]\n      responses: {'200': {description: OK}}",
 );
 const listPetsDocumented = listPets.replace('operationId: listPets', 'operationId: listPets\n      description: Lists the pets.');
-
-async function inTmp(files: Record<string, string>, fn: (dir: string) => Promise<void>): Promise<void> {
-    await withDir(
-        async ({ path }) => {
-            await writeFiles(path, files);
-            await fn(path);
-        },
-        { unsafeCleanup: true },
-    );
-}
 
 describe('exit codes', () => {
     test('0 when nothing changed', async () => {
@@ -65,11 +54,11 @@ describe('exit codes', () => {
         });
     });
 
-    test('2 for a file that does not parse', async () => {
+    test('2 for a file that does not parse, named relative to the current folder', async () => {
         await inTmp({ 'old.yml': listPets, 'new.yml': 'openapi: [3.1' }, async (dir) => {
             const result = await runLocus(['diff', '--source', 'old.yml', 'new.yml'], dir);
             expect(result.code).toBe(2);
-            expect(result.stderr).toMatch(/^error: .*new\.yml: /);
+            expect(result.stderr).toMatch(/^error: new\.yml: /);
         });
     });
 
@@ -98,13 +87,6 @@ describe('exit codes', () => {
         await inTmp({ 'old/api.yml': listPets, 'new/notes.yml': 'a: 1' }, async (dir) => {
             const result = await runLocus(['diff', '--source', 'old', 'new'], dir);
             expect(result).toMatchObject({ code: 2, stderr: 'error: No OpenAPI documents found in new\n' });
-        });
-    });
-
-    test('a parse error names the file relative to the current folder', async () => {
-        await inTmp({ 'old.yml': listPets, 'new.yml': 'openapi: [3.1' }, async (dir) => {
-            const result = await runLocus(['diff', '--source', 'old.yml', 'new.yml'], dir);
-            expect(result.stderr).toMatch(/^error: new\.yml: /);
         });
     });
 

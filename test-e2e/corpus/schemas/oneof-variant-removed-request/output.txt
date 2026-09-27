@@ -10,13 +10,13 @@ Comparing base → head
       Request
         Body  required
           application/json  one of
-            Cat  Cat
+            Cat  object
               name  string  required
               huntingSkill  string  required
-            Dog  Dog
+            Dog  object
               name  string  required
               packSize  integer  required
--           Bird  Bird  [breaking: variant Bird removed (client sends)]
+-           Bird  object  [breaking: variant Bird removed (client sends)]
 -             name  string  required
 -             wingspan  number  required
       Responses

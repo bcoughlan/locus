@@ -13,13 +13,13 @@ Comparing base → head
       Responses
         200  The pet.
           application/json  one of
-            Cat  Cat
+            Cat  object
               name  string  required
               huntingSkill  string  required
-            Dog  Dog
+            Dog  object
               name  string  required
               packSize  integer  required
-+           Bird  Bird  [breaking: variant Bird added (client receives)]
++           Bird  object  [breaking: variant Bird added (client receives)]
 +             name  string  required
 +             wingspan  number  required
 

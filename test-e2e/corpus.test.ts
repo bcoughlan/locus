@@ -6,6 +6,7 @@ import { globSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { expect, test } from 'vitest';
 import { parse } from 'yaml';
+import { toPosix } from '../src/sources/files.ts';
 import { runLocus } from './helpers.ts';
 
 interface Scenario {
@@ -15,7 +16,7 @@ interface Scenario {
 
 const CORPUS = join(import.meta.dirname, 'corpus');
 const scenarios = globSync('*/*/scenario.yml', { cwd: CORPUS })
-    .map((file) => dirname(file).replace(/\\/g, '/'))
+    .map((file) => toPosix(dirname(file)))
     .sort();
 
 const EXPECTED: Record<Scenario['expect'], { exitCode: number; changed: boolean }> = {

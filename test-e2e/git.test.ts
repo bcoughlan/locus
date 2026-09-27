@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { withDir } from 'tmp-promise';
 import { expect, test } from 'vitest';
-import { openapi, runLocus, writeFiles } from './helpers.ts';
+import { inTmp, openapi, runLocus, writeFiles } from './helpers.ts';
 
 /** Run git in `cwd` with an empty global configuration, so the test does not depend on the developer's setup. */
 function git(cwd: string, home: string, ...args: string[]): void {
@@ -89,13 +89,9 @@ test('an unknown ref is an input error', async () => {
 });
 
 test('outside a git repository, git mode is an input error', async () => {
-    await withDir(
-        async ({ path }) => {
-            await writeFiles(path, { 'api.yml': openapi("  /a: {get: {responses: {'200': {description: OK}}}}") });
-            const result = await runLocus(['diff', 'api.yml'], path);
-            expect(result.code).toBe(2);
-            expect(result.stderr).toMatch(/error: .* is not inside a git repository\. Use --source to compare local files\./);
-        },
-        { unsafeCleanup: true },
-    );
+    await inTmp({ 'api.yml': openapi("  /a: {get: {responses: {'200': {description: OK}}}}") }, async (path) => {
+        const result = await runLocus(['diff', 'api.yml'], path);
+        expect(result.code).toBe(2);
+        expect(result.stderr).toMatch(/error: .* is not inside a git repository\. Use --source to compare local files\./);
+    });
 });

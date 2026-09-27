@@ -15,7 +15,7 @@ Comparing base → head
           application/json  Pet
             id  string  required
 ~           name  string
-~             required: required → optional  [breaking: property became optional (client receives)]
+~             required → optional  [breaking: property became optional (client receives)]
             tag  string
         404  No pet has this ID.
 

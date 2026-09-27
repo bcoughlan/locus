@@ -9,7 +9,7 @@ Comparing base → head
 ~   POST /pets/search  searchPets  [breaking]
       Request
 ~       Body  required
-~         required: optional → required  [breaking: request body became required (client sends)]
+~         optional → required  [breaking: request body became required (client sends)]
           application/json  object
             species  string
             maxAge  integer

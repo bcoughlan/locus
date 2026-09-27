@@ -1,8 +1,11 @@
 /** E2E helpers: run the CLI in-process and capture what it prints. */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { withDir } from 'tmp-promise';
 import { main } from '../src/main.ts';
 import type { ColorLevel } from '../src/render/console.ts';
+
+export { spec as openapi } from '../src/testing/build-yaml.ts';
 
 export interface RunResult {
     code: number;
@@ -31,7 +34,13 @@ export async function writeFiles(root: string, files: Record<string, string>): P
     }
 }
 
-/** A minimal OpenAPI 3.1 document with the given paths (YAML, indented under `paths:`). */
-export function openapi(paths: string, rest = ''): string {
-    return `openapi: 3.1.0\ninfo: {title: Test API, version: '1.0'}\npaths:\n${paths}\n${rest}`;
+/** Run `fn` in a temporary folder that holds `files`, and delete the folder afterwards. */
+export async function inTmp(files: Record<string, string>, fn: (dir: string) => Promise<void>): Promise<void> {
+    await withDir(
+        async ({ path }) => {
+            await writeFiles(path, files);
+            await fn(path);
+        },
+        { unsafeCleanup: true },
+    );
 }

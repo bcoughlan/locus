@@ -11,7 +11,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { AttrName, DocumentModel, ViewNode } from '../model/tree.ts';
 import { STRUCTURAL_KINDS } from '../model/tree.ts';
 import { canonicalJson } from '../util.ts';
-import { maxSeverity } from './report.ts';
+import { endpointOutcome, maxSeverity } from './report.ts';
 import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, EndpointCounts, Severity } from './report.ts';
 import { SET_ATTRS, classifyAdded, classifyAttr, classifyRemoved, normalizePath } from './rules.ts';
 import type { Parents } from './rules.ts';
@@ -53,11 +53,7 @@ function mergeWarnings(base: string[], head: string[]): string[] {
 export function buildReport(documents: DocumentDiff[], baseLabel: string, headLabel: string): DiffReport {
     const endpoints: EndpointCounts = { added: 0, removed: 0, breaking: 0, compatible: 0, unchanged: 0 };
     for (const endpoint of documents.flatMap((doc) => [...doc.operations, ...doc.webhooks])) {
-        if (endpoint.status === 'added' || endpoint.status === 'removed') {
-            endpoints[endpoint.status]++;
-        } else {
-            endpoints[endpoint.impact ?? 'unchanged']++;
-        }
+        endpoints[endpointOutcome(endpoint)]++;
     }
     return { baseLabel, headLabel, documents, endpoints, breaking: documents.some((doc) => doc.impact === 'breaking') };
 }

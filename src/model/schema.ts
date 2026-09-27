@@ -402,7 +402,7 @@ function variantNodes(members: Located[], scope: SchemaScope, ctx: BuildContext)
         value !== undefined && all.filter((v) => v === value).length === 1;
     return flats.map((flat, i) => {
         const key = isUnique(names[i], names) ? names[i]! : isUnique(types[i], types) ? types[i]! : `#${i + 1}`;
-        return schemaNode('variant', key, key, flat, scope, ctx);
+        return schemaNode('variant', key, key.startsWith('#') ? `option ${i + 1}` : key, flat, scope, ctx);
     });
 }
 

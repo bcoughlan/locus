@@ -14,7 +14,7 @@ Comparing base → head
           petId  integer<int64>  required
         Header parameters
 ~         Destination  string  required
-~           required: optional → required  [breaking: parameter became required (client sends)]
+~           optional → required  [breaking: parameter became required (client sends)]
       Responses
         201  The copy of the pet.
           application/json  Pet
