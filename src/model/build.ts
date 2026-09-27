@@ -1,23 +1,28 @@
 /**
- * OpenAPI document to view trees: one tree per operation, plus a document node.
+ * OpenAPI document to view trees: one tree per operation, a document node,
+ * and a table of shared schema definitions.
  *
  * Every object read here can be a `$ref`, possibly into another file, so each
  * read goes through {@link DocumentStore.deref} with the file that holds the
- * reference. Untrusted input: malformed parts are skipped, never thrown on.
+ * reference. Each object also carries its JSON pointer, which becomes the
+ * `source` of its node. Untrusted input: malformed parts are skipped, never
+ * thrown on.
  */
 import type { DocumentStore } from '../load/documents.ts';
+import { appendPointer } from '../load/json-pointer.ts';
 import type { OasVersion } from '../load/version.ts';
 import { defaultExplode, defaultStyle } from '../oas/serialization.ts';
 import { HttpMethods } from '../oas/types.ts';
 import { asObject, getArray, getBoolean, getString, getStringArray, getText } from '../util.ts';
-import { TreeTooLarge, buildSchemaNode, flatten, schemaNode, topLevel } from './schema.ts';
+import { located, schemaNode } from './schema.ts';
 import type { BuildContext, Located, SchemaScope } from './schema.ts';
-import type { Attrs, Direction, DocumentModel, JsonValue, ViewNode } from './tree.ts';
+import type { Attrs, Direction, DocumentModel, JsonValue, Source, ViewNode } from './tree.ts';
 
-/** An object read from a document, with the file that holds it. */
+/** An object read from a document, with the file and the JSON pointer where it is. */
 interface Loc {
     value: Record<string, unknown>;
     file: string;
+    pointer: string;
 }
 
 /** Operation context: the directions of its request and response parts. */
@@ -38,49 +43,13 @@ const LOCATION_TITLES: Record<string, string> = {
 };
 /** The spec says that header parameters with these names are ignored. */
 const IGNORED_HEADER_PARAMETERS = new Set(['accept', 'content-type', 'authorization']);
-const NORMAL: OperationScope = { request: 'request', response: 'response', defaultSecurity: undefined };
 
-/** The most schema nodes that one document builds before it expands fewer `$ref` levels. */
-export const NODE_BUDGET = 200_000;
-/** `$ref` depths to try, largest first, when a document exceeds the budget. */
-const FALLBACK_DEPTHS = [8, 6, 4, 3, 2, 1, 0];
-
-/**
- * Build the view trees of the document in `file`. The store must hold the
- * file and its references.
- *
- * Each endpoint expands its schemas in full, so a large spec (such as a spec
- * where every object links to others) can grow without bound. When a
- * document exceeds {@link NODE_BUDGET}, it is built again with fewer nested
- * `$ref` levels expanded, and a warning says so. Pass `maxRefDepth` to build
- * with a known depth, for example the depth of the other side of a diff.
- */
-export function buildDocument(store: DocumentStore, file: string, version: OasVersion, maxRefDepth?: number): DocumentModel {
-    if (maxRefDepth !== undefined) {
-        return buildWithLimits(store, file, version, maxRefDepth, Infinity);
-    }
-    for (const depth of [Infinity, ...FALLBACK_DEPTHS]) {
-        try {
-            return buildWithLimits(store, file, version, depth, depth === 0 ? Infinity : NODE_BUDGET);
-        } catch (err) {
-            if (!(err instanceof TreeTooLarge)) {
-                throw err;
-            }
-        }
-    }
-    throw new Error('unreachable: depth 0 has no budget');
-}
-
-function buildWithLimits(store: DocumentStore, file: string, version: OasVersion, maxRefDepth: number, nodeBudget: number): DocumentModel {
-    const ctx: BuildContext = { store, rootFile: file, family: version.family, warnings: new Set(), maxRefDepth, nodeBudget, nodeCount: 0 };
-    if (maxRefDepth !== Infinity) {
-        ctx.warnings.add(
-            `The document is too large to show in full. Schemas expand ${maxRefDepth} nested $ref levels. Deeper referenced schemas show by name only, and their content is not compared there.`,
-        );
-    }
+/** Build the view trees of the document in `file`. The store must hold the file and its references. */
+export function buildDocument(store: DocumentStore, file: string, version: OasVersion): DocumentModel {
+    const ctx: BuildContext = { store, rootFile: file, family: version.family, warnings: new Set(), schemas: new Map() };
     const root = asObject(store.document(file)) ?? {};
     const info = asObject(root.info) ?? {};
-    const scope: OperationScope = { ...NORMAL, defaultSecurity: root.security };
+    const scope: OperationScope = { request: 'request', response: 'response', defaultSecurity: root.security };
     const flipped: OperationScope = { request: 'response', response: 'request', defaultSecurity: root.security };
 
     const infoNode: ViewNode = {
@@ -96,20 +65,21 @@ function buildWithLimits(store: DocumentStore, file: string, version: OasVersion
             servers: serverUrls(root.servers),
         }),
         children: [],
+        source: { file, pointer: '#/info' },
     };
 
-    const pathItems = (container: unknown) =>
-        entries(container).flatMap(([name, raw]) => {
-            const item = deref(ctx, raw, file);
+    const pathItems = (container: string) =>
+        entries(root[container]).flatMap(([name, raw]) => {
+            const item = deref(ctx, raw, file, appendPointer('#', container, name));
             return item === undefined ? [] : [{ name, item }];
         });
 
     return {
         info: infoNode,
-        operations: pathItems(root.paths).flatMap(({ name, item }) => pathItemOperations(ctx, name, item, scope)),
-        webhooks: pathItems(root.webhooks).flatMap(({ name, item }) => pathItemOperations(ctx, name, item, flipped)),
+        operations: pathItems('paths').flatMap(({ name, item }) => pathItemOperations(ctx, name, item, scope)),
+        webhooks: pathItems('webhooks').flatMap(({ name, item }) => pathItemOperations(ctx, name, item, flipped)),
+        schemas: ctx.schemas,
         warnings: [...ctx.warnings],
-        refDepth: maxRefDepth,
     };
 }
 
@@ -117,13 +87,13 @@ function buildWithLimits(store: DocumentStore, file: string, version: OasVersion
 function pathItemOperations(ctx: BuildContext, path: string, item: Loc, scope: OperationScope): ViewNode[] {
     const operations: ViewNode[] = [];
     for (const method of HttpMethods) {
-        const op = deref(ctx, item.value[method], item.file);
+        const op = deref(ctx, item.value[method], item.file, appendPointer(item.pointer, method));
         if (op !== undefined) {
             operations.push(buildOperation(ctx, method, path, item, op, scope));
         }
     }
     for (const [method, raw] of Object.entries(asObject(item.value.additionalOperations) ?? {})) {
-        const op = deref(ctx, raw, item.file);
+        const op = deref(ctx, raw, item.file, appendPointer(item.pointer, 'additionalOperations', method));
         if (op !== undefined) {
             operations.push(buildOperation(ctx, method, path, item, op, scope));
         }
@@ -151,7 +121,7 @@ function buildOperation(ctx: BuildContext, method: string, path: string, item: L
         section('callbacks', 'Callbacks', callbackNodes(ctx, op, scope), scope.request),
     ].filter((node): node is ViewNode => node !== undefined);
 
-    return { kind: 'operation', key: `${upper} ${path}`, label: `${upper} ${path}`, direction: scope.request, attrs, children: sections };
+    return { kind: 'operation', key: `${upper} ${path}`, label: `${upper} ${path}`, direction: scope.request, attrs, children: sections, source: sourceOf(op) };
 }
 
 function section(key: string, label: string, children: ViewNode[], direction: Direction = 'request'): ViewNode | undefined {
@@ -178,7 +148,7 @@ function securityNodes(ctx: BuildContext, requirements: unknown, direction: Dire
 }
 
 function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scopes: unknown, direction: Direction): ViewNode {
-    const scheme = deref(ctx, raw, ctx.rootFile);
+    const scheme = deref(ctx, raw, ctx.rootFile, appendPointer('#', 'components', 'securitySchemes', name));
     const s = scheme?.value ?? {};
     const attrs = compact<Attrs>({
         schemeType: getString(s.type),
@@ -194,17 +164,18 @@ function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scope
         unresolved: scheme === undefined ? `#/components/securitySchemes/${name}` : undefined,
     });
     // One child per OAuth flow, with its URLs. The scope descriptions are documentation, so they stay out.
-    const flows = entries(s.flows).map(([flowName, raw]): ViewNode => {
-        const flow = asObject(raw) ?? {};
+    const flows = entries(s.flows).map(([flowName, rawFlow]): ViewNode => {
+        const flow = asObject(rawFlow) ?? {};
         const urls = compact<Attrs>({
             authorizationUrl: getString(flow.authorizationUrl),
             deviceAuthorizationUrl: getString(flow.deviceAuthorizationUrl),
             tokenUrl: getString(flow.tokenUrl),
             refreshUrl: getString(flow.refreshUrl),
         });
-        return { kind: 'oauthFlow', key: flowName, label: flowName, direction, attrs: urls, children: [] };
+        const source = scheme === undefined ? undefined : { file: scheme.file, pointer: appendPointer(scheme.pointer, 'flows', flowName) };
+        return { kind: 'oauthFlow', key: flowName, label: flowName, direction, attrs: urls, children: [], source };
     });
-    return { kind: 'securityScheme', key: name, label: name, direction, attrs, children: flows };
+    return { kind: 'securityScheme', key: name, label: name, direction, attrs, children: flows, source: scheme && sourceOf(scheme) };
 }
 
 // --- Request ----------------------------------------------------------------
@@ -212,19 +183,19 @@ function securitySchemeNode(ctx: BuildContext, name: string, raw: unknown, scope
 function requestNodes(ctx: BuildContext, path: string, item: Loc, op: Loc, direction: Direction): ViewNode[] {
     const parameters = new Map<string, Loc>();
     for (const holder of [item, op]) {
-        for (const raw of getArray(holder.value.parameters)) {
-            const param = deref(ctx, raw, holder.file);
+        getArray(holder.value.parameters).forEach((raw, i) => {
+            const param = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'parameters', i));
             const name = getString(param?.value.name);
             const location = getString(param?.value.in);
             if (param === undefined || name === undefined || location === undefined) {
-                continue;
+                return;
             }
             if (location === 'header' && IGNORED_HEADER_PARAMETERS.has(name.toLowerCase())) {
-                continue;
+                return;
             }
             // An operation parameter overrides a path item parameter with the same name and location.
             parameters.set(`${location}:${location === 'header' ? name.toLowerCase() : name}`, param);
-        }
+        });
     }
 
     const groups: ViewNode[] = [];
@@ -238,7 +209,7 @@ function requestNodes(ctx: BuildContext, path: string, item: Loc, op: Loc, direc
         }
     }
 
-    const body = deref(ctx, op.value.requestBody, op.file);
+    const body = deref(ctx, op.value.requestBody, op.file, appendPointer(op.pointer, 'requestBody'));
     if (body !== undefined) {
         groups.push({
             kind: 'requestBody',
@@ -247,6 +218,7 @@ function requestNodes(ctx: BuildContext, path: string, item: Loc, op: Loc, direc
             direction,
             attrs: compact({ required: body.value.required === true ? true : undefined, description: getText(body.value.description) }),
             children: mediaTypeNodes(ctx, body, direction),
+            source: sourceOf(body),
         });
     }
     return groups;
@@ -268,7 +240,7 @@ function parameterNode(ctx: BuildContext, param: Loc, pathNames: string[], direc
         allowEmptyValue: p.allowEmptyValue === true ? true : undefined,
         allowReserved: p.allowReserved === true ? true : undefined,
         example: p.example as JsonValue | undefined,
-        examples: exampleValues(ctx, p.examples, param.file),
+        examples: exampleValues(ctx, p.examples, param),
     };
     return valueNode(ctx, 'parameter', key, name, param, own, direction);
 }
@@ -288,21 +260,23 @@ function serialization(p: Record<string, unknown>, location: string): Attrs {
 
 /**
  * A parameter or header node. Its schema comes from `schema`, or from the
- * single media type of `content`.
+ * single media type of `content`. The node's source is the parameter or
+ * header itself, not its schema.
  */
 function valueNode(ctx: BuildContext, kind: 'parameter' | 'header', key: string, label: string, holder: Loc, own: Attrs, direction: Direction): ViewNode {
-    const content = Object.entries(asObject(holder.value.content) ?? {});
-    let schema: Located | undefined = holder.value.schema === undefined ? undefined : topLevel(holder.value.schema, holder.file);
-    if (schema === undefined && content.length > 0) {
-        const [mediaType, raw] = content[0];
+    let schema: Located | undefined =
+        holder.value.schema === undefined ? undefined : located(holder.value.schema, holder.file, appendPointer(holder.pointer, 'schema'));
+    const [content] = Object.entries(asObject(holder.value.content) ?? {});
+    if (schema === undefined && content !== undefined) {
+        const [mediaType, raw] = content;
         own.contentType = mediaType;
-        const media = deref(ctx, raw, holder.file);
+        const media = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'content', mediaType));
         if (media?.value.schema !== undefined) {
-            schema = topLevel(media.value.schema, media.file);
+            schema = located(media.value.schema, media.file, appendPointer(media.pointer, 'schema'));
         }
     }
-    const scope = schemaScope(direction);
-    return buildSchemaNode(kind, key, label, schema === undefined ? [] : [schema], scope, ctx, compact(own));
+    const node = schemaNode(kind, key, label, schema === undefined ? [] : [schema], schemaScope(direction), ctx, compact(own));
+    return { ...node, source: sourceOf(holder) };
 }
 
 // --- Responses --------------------------------------------------------------
@@ -311,14 +285,14 @@ function responseNodes(ctx: BuildContext, op: Loc, direction: Direction): ViewNo
     return entries(op.value.responses)
         .sort(([a], [b]) => compareStatusCodes(a, b))
         .flatMap(([code, raw]) => {
-            const response = deref(ctx, raw, op.file);
+            const response = deref(ctx, raw, op.file, appendPointer(op.pointer, 'responses', code));
             if (response === undefined) {
                 return [];
             }
             const headers = Object.entries(asObject(response.value.headers) ?? {})
                 .filter(([name]) => name.toLowerCase() !== 'content-type')
                 .flatMap(([name, rawHeader]) => {
-                    const header = deref(ctx, rawHeader, response.file);
+                    const header = deref(ctx, rawHeader, response.file, appendPointer(response.pointer, 'headers', name));
                     return header === undefined ? [] : [headerNode(ctx, name, header, direction)];
                 });
             const children: ViewNode[] = [];
@@ -333,6 +307,7 @@ function responseNodes(ctx: BuildContext, op: Loc, direction: Direction): ViewNo
                 direction,
                 attrs: compact({ summary: getText(response.value.summary), description: getText(response.value.description) }),
                 children,
+                source: sourceOf(response),
             };
             return [node];
         });
@@ -347,7 +322,7 @@ function headerNode(ctx: BuildContext, name: string, header: Loc, direction: Dir
         description: getText(h.description),
         ...serialization(h, 'header'),
         example: h.example as JsonValue | undefined,
-        examples: exampleValues(ctx, h.examples, header.file),
+        examples: exampleValues(ctx, h.examples, header),
     };
     return valueNode(ctx, 'header', name.toLowerCase(), name, header, own, direction);
 }
@@ -372,32 +347,34 @@ export function compareStatusCodes(a: string, b: string): number {
 function mediaTypeNodes(ctx: BuildContext, holder: Loc, direction: Direction): ViewNode[] {
     const scope = schemaScope(direction);
     return Object.entries(asObject(holder.value.content) ?? {}).flatMap(([mediaType, raw]) => {
-        const media = deref(ctx, raw, holder.file);
+        const media = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'content', mediaType));
         if (media === undefined) {
             return [];
         }
         const m = media.value;
         const own = compact<Attrs>({
             example: m.example as JsonValue | undefined,
-            examples: exampleValues(ctx, m.examples, media.file),
+            examples: exampleValues(ctx, m.examples, media),
         });
-        const schemas = m.schema === undefined ? [] : [topLevel(m.schema, media.file)];
-        const node = schemaNode('mediaType', mediaType.toLowerCase(), mediaType, flatten(schemas, ctx), scope, ctx, own);
+        const schemas = m.schema === undefined ? [] : [located(m.schema, media.file, appendPointer(media.pointer, 'schema'))];
+        const node = { ...schemaNode('mediaType', mediaType.toLowerCase(), mediaType, schemas, scope, ctx, own), source: sourceOf(media) };
         if (m.itemSchema !== undefined) {
-            node.children.push(buildSchemaNode('items', 'itemSchema', 'each item', [topLevel(m.itemSchema, media.file)], scope, ctx));
+            // A 3.2 sequential media type: one schema per item of the stream.
+            const items = [located(m.itemSchema, media.file, appendPointer(media.pointer, 'itemSchema'))];
+            node.children = [...node.children, schemaNode('items', 'itemSchema', 'each item', items, scope, ctx)];
         }
         return [node];
     });
 }
 
 /** Named examples with their values. The model shows the names and compares the values. */
-function exampleValues(ctx: BuildContext, examples: unknown, file: string): Record<string, JsonValue> | undefined {
-    const entries = Object.entries(asObject(examples) ?? {}).map(([name, raw]) => {
-        const example = deref(ctx, raw, file)?.value ?? {};
+function exampleValues(ctx: BuildContext, examples: unknown, holder: Loc): Record<string, JsonValue> | undefined {
+    const list = Object.entries(asObject(examples) ?? {}).map(([name, raw]) => {
+        const example = deref(ctx, raw, holder.file, appendPointer(holder.pointer, 'examples', name))?.value ?? {};
         const value = example.dataValue ?? example.value ?? example.serializedValue ?? example.externalValue ?? null;
         return [name, value as JsonValue] as const;
     });
-    return entries.length === 0 ? undefined : Object.fromEntries(entries);
+    return list.length === 0 ? undefined : Object.fromEntries(list);
 }
 
 // --- Callbacks --------------------------------------------------------------
@@ -406,26 +383,28 @@ function exampleValues(ctx: BuildContext, examples: unknown, file: string): Reco
 function callbackNodes(ctx: BuildContext, op: Loc, scope: OperationScope): ViewNode[] {
     const flipped: OperationScope = { request: scope.response, response: scope.request, defaultSecurity: undefined };
     return Object.entries(asObject(op.value.callbacks) ?? {}).flatMap(([name, raw]) => {
-        const callback = deref(ctx, raw, op.file);
+        const callback = deref(ctx, raw, op.file, appendPointer(op.pointer, 'callbacks', name));
         if (callback === undefined) {
             return [];
         }
         const operations = entries(callback.value).flatMap(([expression, rawItem]) => {
-            const item = deref(ctx, rawItem, callback.file);
+            const item = deref(ctx, rawItem, callback.file, appendPointer(callback.pointer, expression));
             return item === undefined ? [] : pathItemOperations(ctx, expression, item, flipped);
         });
-        return [{ kind: 'callback', key: name, label: name, direction: flipped.request, attrs: {}, children: operations }];
+        const node: ViewNode = { kind: 'callback', key: name, label: name, direction: flipped.request, attrs: {}, children: operations, source: sourceOf(callback) };
+        return [node];
     });
 }
 
 // --- Helpers ----------------------------------------------------------------
 
 /**
- * Resolve a possibly-referenced object. `undefined` when absent, unresolved,
- * or not an object. A `summary` or `description` next to the `$ref` overrides
- * the one of the target (3.1 Reference Object).
+ * Resolve a possibly-referenced object at `pointer` in `file`. `undefined`
+ * when absent, unresolved, or not an object. The result carries the file and
+ * pointer of the target. A `summary` or `description` next to the `$ref`
+ * overrides the one of the target (3.1 Reference Object).
  */
-function deref(ctx: BuildContext, raw: unknown, file: string): Loc | undefined {
+function deref(ctx: BuildContext, raw: unknown, file: string, pointer: string): Loc | undefined {
     if (raw === undefined) {
         return undefined;
     }
@@ -440,7 +419,11 @@ function deref(ctx: BuildContext, raw: unknown, file: string): Loc | undefined {
     }
     const reference = asObject(raw);
     const overrides = target.key === undefined ? {} : compact({ summary: reference?.summary, description: reference?.description });
-    return { value: { ...value, ...overrides }, file: target.file };
+    return { value: { ...value, ...overrides }, file: target.file, pointer: target.pointer ?? pointer };
+}
+
+function sourceOf(loc: Loc): Source {
+    return { file: loc.file, pointer: loc.pointer };
 }
 
 /** The entries of an object map, without specification extensions (`x-*`). */

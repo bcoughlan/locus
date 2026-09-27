@@ -68,6 +68,7 @@ describe('DocumentStore', () => {
             value: { type: 'object' },
             file: at('api.yml'),
             key: `${at('api.yml')}#/components/schemas/Pet`,
+            pointer: '#/components/schemas/Pet',
             name: 'Pet',
         });
     });
@@ -132,6 +133,26 @@ describe('DocumentStore', () => {
         const store = memoryStore({ 'api.yml': 'paths: {"/pets/{id}": {x: 1}}' });
         await store.loadWithRefs(at('api.yml'));
         expect(store.deref({ $ref: '#/paths/~1pets~1%7Bid%7D' }, at('api.yml')).value).toEqual({ x: 1 });
+    });
+});
+
+describe('lineOf', () => {
+    test('gives the line of a map key or a list item for a JSON pointer', async () => {
+        const store = memoryStore({
+            'api.yml': 'openapi: 3.1.0\npaths:\n  /pets:\n    get:\n      parameters:\n        - name: limit\n          in: query\n',
+        });
+        await store.loadWithRefs(at('api.yml'));
+        expect(store.lineOf(at('api.yml'), '#')).toBe(1);
+        expect(store.lineOf(at('api.yml'), '#/paths/~1pets/get')).toBe(4);
+        expect(store.lineOf(at('api.yml'), '#/paths/~1pets/get/parameters/0')).toBe(6);
+        expect(store.lineOf(at('api.yml'), '#/paths/~1pets/post')).toBeUndefined();
+        expect(store.lineOf(at('other.yml'), '#')).toBeUndefined();
+    });
+
+    test('works for JSON files too', async () => {
+        const store = memoryStore({ 'api.json': '{\n  "openapi": "3.1.0",\n  "info": {\n    "title": "T"\n  }\n}' });
+        await store.loadWithRefs(at('api.json'));
+        expect(store.lineOf(at('api.json'), '#/info/title')).toBe(4);
     });
 });
 

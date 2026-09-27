@@ -1,6 +1,7 @@
+import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { buildYaml as build, childKeys as keys, find, spec } from '../testing/build-yaml.ts';
-import type { ViewNode } from './tree.ts';
+import { buildYaml as build, childKeys as keys, find, findIn, spec } from '../testing/build-yaml.ts';
+import type { DocumentModel, ViewNode } from './tree.ts';
 
 describe('document and operations', () => {
     test('the document node holds title, version, and servers, but not the OpenAPI version', async () => {
@@ -207,7 +208,7 @@ describe('request bodies and responses', () => {
         const body = find(doc.operations[0], 'request', 'body');
         expect(body.attrs).toEqual({ required: true, description: 'The pet' });
         expect(keys(body)).toEqual(['application/json', 'application/xml']);
-        const json = find(body, 'application/json');
+        const json = findIn(doc, body, 'application/json');
         expect(json.attrs).toEqual({ title: 'Pet', type: ['object'] });
         expect(json.children.map((p) => [p.key, p.attrs])).toEqual([['name', { required: true, type: ['string'] }]]);
     });
@@ -257,13 +258,16 @@ describe('request bodies and responses', () => {
 });
 
 describe('schemas', () => {
-    /** The schema of the 200 application/json response of GET /x. */
+    let doc: DocumentModel;
+    /** The schema of the 200 application/json response of GET /x, with its reference expanded. */
     async function schemaOf(schema: string, components = '', version = '3.1.0'): Promise<ViewNode> {
-        const doc = await build(
+        doc = await build(
             spec(`  /x:\n    get:\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: ${schema}`, components, version),
         );
-        return find(doc.operations[0], 'responses', '200', 'application/json');
+        return findIn(doc, doc.operations[0], 'responses', '200', 'application/json');
     }
+    /** A child of an expanded node, itself expanded. */
+    const at = (node: ViewNode, ...path: string[]) => findIn(doc, node, ...path);
 
     test('constraints, enum, format, default, and example', async () => {
         const node = await schemaOf(
@@ -280,6 +284,36 @@ describe('schemas', () => {
             maxLength: 9,
             pattern: '^a',
         });
+    });
+
+    test('a $ref stays a reference: one shared definition per schema and direction', async () => {
+        doc = await build(
+            spec(
+                `  /pets:
+    post:
+      requestBody: {content: {application/json: {schema: {$ref: "#/components/schemas/Pet"}}}}
+      responses:
+        '200': {content: {application/json: {schema: {type: object, properties: {a: {$ref: "#/components/schemas/Pet"}, b: {$ref: "#/components/schemas/Pet"}}}}}}`,
+                'components:\n  schemas:\n    Pet: {type: object, properties: {name: {type: string}}}',
+            ),
+        );
+        const response = find(doc.operations[0], 'responses', '200', 'application/json');
+        expect(find(response, 'a').ref).toBe(find(response, 'b').ref);
+        expect(find(response, 'a').children).toEqual([]);
+        expect(find(doc.operations[0], 'request', 'body', 'application/json').ref).not.toBe(find(response, 'a').ref);
+        expect([...doc.schemas.values()].map((schema) => [schema.label, schema.direction])).toEqual([
+            ['Pet', 'request'],
+            ['Pet', 'response'],
+        ]);
+    });
+
+    test('nodes carry their file and JSON pointer', async () => {
+        const node = await schemaOf('{$ref: "#/components/schemas/Pet"}', 'components:\n  schemas:\n    Pet: {type: object, properties: {name: {type: string}}}');
+        const pointerOf = (n: ViewNode) => n.source?.pointer;
+        expect(pointerOf(doc.operations[0])).toBe('#/paths/~1x/get');
+        expect(pointerOf(node)).toBe('#/paths/~1x/get/responses/200/content/application~1json');
+        expect(pointerOf(doc.schemas.get(node.ref!)!)).toBe('#/components/schemas/Pet');
+        expect(pointerOf(find(node, 'name'))).toBe('#/components/schemas/Pet/properties/name');
     });
 
     test('allOf members merge: properties, required, the tightest limits, and the outer name', async () => {
@@ -300,14 +334,14 @@ describe('schemas', () => {
         ]);
     });
 
-    test('a recursive schema stops with a marker', async () => {
+    test('a recursive schema refers back to its own definition', async () => {
         const node = await schemaOf(
             '{$ref: "#/components/schemas/Node"}',
             'components:\n  schemas:\n    Node: {type: object, properties: {children: {type: array, items: {$ref: "#/components/schemas/Node"}}}}',
         );
-        const items = find(node, 'children', '[]');
-        expect(items.attrs).toEqual({ recursive: 'Node' });
-        expect(items.children).toEqual([]);
+        const items = find(at(node, 'children'), '[]');
+        expect(items.ref).toBe(node.ref);
+        expect(doc.schemas.size).toBe(1);
     });
 
     test('oneOf variants are keyed by name, then by type, then by position', async () => {
@@ -316,7 +350,12 @@ describe('schemas', () => {
             'components:\n  schemas:\n    Cat: {type: object}',
         );
         expect(node.attrs).toEqual({ composition: 'oneOf', discriminator: 'kind', mapping: { cat: 'Cat' } });
-        expect(keys(node)).toEqual(['Cat', 'string', '#3', '#4']);
+        expect(node.children.map((child) => [child.key, child.label])).toEqual([
+            ['Cat', 'Cat'],
+            ['string', 'string'],
+            ['#3', 'option 3'],
+            ['#4', 'option 4'],
+        ]);
     });
 
     test('3.0 nullable and 3.1 "null" type give the same node', async () => {
@@ -328,14 +367,18 @@ describe('schemas', () => {
         expect(anyOf.attrs).toEqual(v30.attrs);
     });
 
-    test('3.0 nullable next to allOf keeps the name and adds null', async () => {
-        const node = await schemaOf(
-            '{nullable: true, allOf: [{$ref: "#/components/schemas/Pet"}]}',
-            'components:\n  schemas:\n    Pet: {type: object, properties: {name: {type: string}}}',
-            '3.0.3',
-        );
-        expect(node.attrs).toEqual({ title: 'Pet', type: ['object', 'null'] });
-        expect(keys(node)).toEqual(['name']);
+    test('a nullable reference stays a reference, in 3.0 and 3.1 form', async () => {
+        const components = 'components:\n  schemas:\n    Pet: {type: object, properties: {name: {type: string}}}';
+        for (const [schema, version] of [
+            ['{nullable: true, allOf: [{$ref: "#/components/schemas/Pet"}]}', '3.0.3'],
+            ['{$ref: "#/components/schemas/Pet", nullable: true}', '3.0.3'],
+            ['{oneOf: [{$ref: "#/components/schemas/Pet"}, {type: "null"}]}', '3.1.0'],
+        ]) {
+            const node = await schemaOf(schema, components, version);
+            expect(node.ref).toBeDefined();
+            expect(node.attrs).toEqual({ title: 'Pet', type: ['object', 'null'] });
+            expect(keys(node)).toEqual(['name']);
+        }
     });
 
     test('3.0 boolean exclusiveMaximum becomes the 3.1 number form', async () => {
@@ -352,12 +395,22 @@ describe('schemas', () => {
         expect(find(node, 'closed').attrs).toEqual({ type: ['object'], additionalProperties: false });
     });
 
-    test('description next to a $ref overrides the target description', async () => {
+    test('a description next to a $ref overrides the target description, and the node stays a reference', async () => {
         const node = await schemaOf(
             '{$ref: "#/components/schemas/Pet", description: Overridden}',
             'components:\n  schemas:\n    Pet: {type: object, description: Original}',
         );
+        expect(node.ref).toBeDefined();
         expect(node.attrs).toEqual({ title: 'Pet', type: ['object'], description: 'Overridden' });
+    });
+
+    test('other keywords next to a $ref make a schema of its own, built in place', async () => {
+        const node = await schemaOf(
+            '{$ref: "#/components/schemas/Name", maxLength: 10}',
+            'components:\n  schemas:\n    Name: {type: string, maxLength: 50}',
+        );
+        expect(node.ref).toBeUndefined();
+        expect(node.attrs).toEqual({ title: 'Name', type: ['string'], maxLength: 10 });
     });
 
     test('a nullable oneOf without a type gets the nullable fact', async () => {
@@ -366,21 +419,17 @@ describe('schemas', () => {
         expect(keys(node)).toEqual(['string', 'integer']);
     });
 
-    test('a recursive reference behind a null alternative keeps its marker (3.1 and 3.0)', async () => {
-        const v31 = await schemaOf(
-            '{$ref: "#/components/schemas/Node"}',
-            'components:\n  schemas:\n    Node: {type: object, properties: {parent: {oneOf: [{$ref: "#/components/schemas/Node"}, {type: "null"}]}}}',
-        );
-        expect(find(v31, 'parent').attrs).toEqual({ recursive: 'Node', nullable: true });
-        const v30 = await schemaOf(
-            '{$ref: "#/components/schemas/Node"}',
-            'components:\n  schemas:\n    Node: {type: object, properties: {parent: {nullable: true, allOf: [{$ref: "#/components/schemas/Node"}]}}}',
-            '3.0.3',
-        );
-        expect(find(v30, 'parent').attrs).toEqual({ recursive: 'Node', nullable: true });
+    test('a recursive reference behind a null alternative refers back to its definition (3.1 and 3.0)', async () => {
+        for (const [parent, version] of [
+            ['{oneOf: [{$ref: "#/components/schemas/Node"}, {type: "null"}]}', '3.1.0'],
+            ['{nullable: true, allOf: [{$ref: "#/components/schemas/Node"}]}', '3.0.3'],
+        ]) {
+            const node = await schemaOf('{$ref: "#/components/schemas/Node"}', `components:\n  schemas:\n    Node: {type: object, properties: {parent: ${parent}}}`, version);
+            expect(find(node, 'parent')).toMatchObject({ ref: node.ref, attrs: { nullable: true } });
+        }
     });
 
-    test('reusing a schema of the parent allOf is not recursion', async () => {
+    test('a property that reuses a schema of the parent allOf expands normally', async () => {
         const node = await schemaOf(
             '{$ref: "#/components/schemas/Error"}',
             `components:
@@ -389,14 +438,12 @@ describe('schemas', () => {
     Error: {allOf: [{$ref: "#/components/schemas/Problem"}], properties: {cause: {$ref: "#/components/schemas/Problem"}}}`,
         );
         expect(keys(node)).toEqual(['title', 'cause']);
-        expect(find(node, 'cause').attrs).toEqual({ title: 'Problem', type: ['object'] });
-        expect(keys(find(node, 'cause'))).toEqual(['title']);
+        expect(at(node, 'cause').attrs).toEqual({ title: 'Problem', type: ['object'] });
+        expect(keys(at(node, 'cause'))).toEqual(['title']);
     });
 
     test('a second oneOf/anyOf list gives a warning', async () => {
-        const doc = await build(
-            spec(`  /x:\n    get:\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: {allOf: [{oneOf: [{type: string}, {type: integer}]}, {anyOf: [{type: string}, {type: boolean}]}]}`),
-        );
+        await schemaOf('{allOf: [{oneOf: [{type: string}, {type: integer}]}, {anyOf: [{type: string}, {type: boolean}]}]}');
         expect(doc.warnings).toEqual([expect.stringContaining('combines several oneOf/anyOf lists')]);
     });
 
@@ -428,24 +475,23 @@ describe('schemas', () => {
     });
 
     test('schemas in other files resolve relative to their own file', async () => {
-        const doc = await build(
+        doc = await build(
             spec(`  /x:\n    get:\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: {$ref: "schemas/pet.yml"}`),
             {
                 'schemas/pet.yml': 'type: object\nproperties:\n  owner: {$ref: "owner.yml#/Owner"}',
                 'schemas/owner.yml': 'Owner: {type: object, properties: {email: {type: string, format: email}}}',
             },
         );
-        const body = find(doc.operations[0], 'responses', '200', 'application/json');
+        const body = findIn(doc, doc.operations[0], 'responses', '200', 'application/json');
         expect(body.attrs.title).toBe('pet');
-        expect(find(body, 'owner', 'email').attrs).toEqual({ type: ['string'], format: 'email' });
+        expect(at(body, 'owner', 'email').attrs).toEqual({ type: ['string'], format: 'email' });
+        expect(doc.schemas.get(find(body, 'owner').ref!)?.source?.file).toBe(resolve('/virtual/schemas/owner.yml'));
         expect(doc.warnings).toEqual([]);
     });
 
     test('an unresolved $ref becomes a marker and a warning', async () => {
-        const doc = await build(
-            spec(`  /x:\n    get:\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: {$ref: "missing.yml"}`),
-        );
-        expect(find(doc.operations[0], 'responses', '200', 'application/json').attrs).toEqual({ unresolved: 'missing.yml' });
+        const node = await schemaOf('{$ref: "missing.yml"}');
+        expect(node.attrs).toEqual({ unresolved: 'missing.yml' });
         expect(doc.warnings).toEqual([expect.stringContaining('Unresolved $ref "missing.yml"')]);
     });
 });

@@ -183,8 +183,6 @@ describe('classifyAttr', () => {
         ['discriminator mapping added in a response', 'mapping', { cat: 'Cat' }, { cat: 'Cat', dog: 'Dog' }, res(), B],
         ['discriminator mapping removed in a request', 'mapping', { cat: 'Cat', dog: 'Dog' }, { cat: 'Cat' }, req(), B],
         ['discriminator mapping target changed', 'mapping', { cat: 'Cat' }, { cat: 'Feline' }, res(), B],
-        ['recursive schema renamed', 'recursive', 'Node', 'Tree', res(), C],
-        ['recursion replaced by a structure', 'recursive', 'Node', undefined, res(), B],
         ['null allowed without a type, in a response', 'nullable', undefined, true, res(), B],
         ['null no longer allowed without a type, in a response', 'nullable', true, undefined, res(), C],
         ['defaultMapping changed', 'defaultMapping', 'Cat', 'Dog', res(), B],

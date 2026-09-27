@@ -202,13 +202,6 @@ export function classifyAttr(name: AttrName, before: unknown, after: unknown, no
                 : verdict(COMPATIBLE, 'additional properties allowed');
         case 'mapping':
             return mappingVerdict(node, before as Record<string, string> | undefined, after as Record<string, string> | undefined);
-        case 'truncated':
-            return verdict(COMPATIBLE, 'schema not expanded here (the document is too large)');
-        case 'recursive':
-            // Both sides refer back to an enclosing schema: only its name changed.
-            return before !== undefined && after !== undefined
-                ? verdict(COMPATIBLE, 'recursive schema renamed')
-                : verdict(BREAKING, 'schema structure changed');
         case 'composition':
         case 'discriminator':
         case 'defaultMapping':

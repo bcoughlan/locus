@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { DocumentStore } from '../load/documents.ts';
 import { detectVersion } from '../load/version.ts';
 import { buildDocument } from '../model/build.ts';
+import { effectiveAttrs } from '../model/tree.ts';
 import type { DocumentModel, ViewNode } from '../model/tree.ts';
 
 const ROOT = resolve('/virtual/api.yml');
@@ -42,3 +43,24 @@ export function find<T extends { key: string; children: T[] }>(node: T, ...keys:
 }
 
 export const childKeys = (node: ViewNode | { children: { key: string }[] }) => node.children.map((child) => child.key);
+
+/**
+ * A node as it shows: a reference expanded one level into its definition's
+ * facts and children. The `ref` stays, so tests can check it.
+ */
+export function expand(node: ViewNode, doc: DocumentModel): ViewNode {
+    const definition = node.ref === undefined ? undefined : doc.schemas.get(node.ref);
+    if (definition === undefined) {
+        return node;
+    }
+    return { ...node, attrs: effectiveAttrs(node, (id) => doc.schemas.get(id)), children: [...definition.children, ...node.children] };
+}
+
+/** Like {@link find}, but follows references at each step, and returns the expanded node. */
+export function findIn(doc: DocumentModel, node: ViewNode, ...keys: string[]): ViewNode {
+    let current = expand(node, doc);
+    for (const key of keys) {
+        current = expand(find(current, key), doc);
+    }
+    return current;
+}

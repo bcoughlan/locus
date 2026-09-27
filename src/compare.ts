@@ -31,10 +31,7 @@ export interface Comparison {
 export async function compareFiles(base: SpecFile[], head: SpecFile[], options: CompareOptions): Promise<Comparison> {
     const cwd = options.cwd ?? { base: process.cwd(), head: process.cwd() };
     const [baseDocs, headDocs] = await Promise.all([loadDocuments(base, cwd.base), loadDocuments(head, cwd.head)]);
-    const documents = pairById(baseDocs, headDocs).map((pair) => {
-        const [b, h] = sameRefDepth(pair.base, pair.head);
-        return diffDocument(pair.id, b, h);
-    });
+    const documents = pairById(baseDocs, headDocs).map((pair) => diffDocument(pair.id, pair.base, pair.head));
     return {
         report: buildReport(documents, options.baseLabel, options.headLabel),
         documents: { base: baseDocs.length, head: headDocs.length },
@@ -44,22 +41,6 @@ export async function compareFiles(base: SpecFile[], head: SpecFile[], options: 
 interface LoadedDocument extends DocumentSide {
     id: string;
     explicit: boolean;
-    /** Builds the model again with fewer `$ref` levels expanded. */
-    rebuild: (maxRefDepth: number) => DocumentSide['model'];
-}
-
-/**
- * A large document expands fewer `$ref` levels (see `buildDocument`). When
- * the two sides differ in depth, build the deeper one again at the smaller
- * depth, so the depth limit itself does not show up as a change.
- */
-function sameRefDepth(base: LoadedDocument | undefined, head: LoadedDocument | undefined): [LoadedDocument | undefined, LoadedDocument | undefined] {
-    if (base === undefined || head === undefined || base.model.refDepth === head.model.refDepth) {
-        return [base, head];
-    }
-    const depth = Math.min(base.model.refDepth, head.model.refDepth);
-    const at = (side: LoadedDocument) => (side.model.refDepth === depth ? side : { ...side, model: side.rebuild(depth) });
-    return [at(base), at(head)];
 }
 
 /**
@@ -89,13 +70,7 @@ async function loadDocuments(files: SpecFile[], cwd: string): Promise<LoadedDocu
             continue;
         }
         await store.loadWithRefs(file.path);
-        documents.push({
-            id: file.id,
-            explicit: file.explicit,
-            display: file.display,
-            model: buildDocument(store, file.path, version),
-            rebuild: (maxRefDepth) => buildDocument(store, file.path, version, maxRefDepth),
-        });
+        documents.push({ id: file.id, explicit: file.explicit, display: file.display, model: buildDocument(store, file.path, version) });
     }
     return documents;
 }

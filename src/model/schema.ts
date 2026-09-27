@@ -1,28 +1,32 @@
 /**
  * Schema Objects to view nodes.
  *
- * A schema first becomes a {@link FlatSchema}: the schema, its `$ref` target,
- * and all its `allOf` members merged into one set of keywords. The merge keeps
- * the source file of each nested schema, because a nested `$ref` resolves
- * against the file it appears in. Then the flat schema becomes a node, and its
- * properties, items, and variants become child nodes.
+ * A schema that only refers to another one (`$ref: Pet`, maybe nullable)
+ * becomes a node with a `ref` to a shared definition. The builder makes each
+ * definition once per schema and direction, the first time a node needs it.
+ * A reference cycle simply points back to a definition that is under
+ * construction, so cycles need no special case.
  *
- * Recursion: each nested schema remembers the `$ref` targets whose content
- * holds it (`Located.enclosing`). A reference to one of them is a cycle, and
- * the node stops there with a `recursive` marker. A schema that only reuses a
- * target of its parent's `allOf` is not a cycle, so it expands normally.
+ * Any other schema is built in place. It first becomes a {@link FlatSchema}:
+ * the schema and all its `allOf` members merged into one set of keywords.
+ * Each nested schema keeps its file and JSON pointer, because a nested `$ref`
+ * resolves against the file it appears in, and a UI can jump to it. Then its
+ * properties, items, and variants become child nodes: again references, or
+ * built in place.
  */
-import type { DocumentStore } from '../load/documents.ts';
+import type { DocumentStore, Resolved } from '../load/documents.ts';
+import { appendPointer } from '../load/json-pointer.ts';
 import type { OasFamily } from '../load/version.ts';
 import { upgradeSchema30 } from '../oas/shim30.ts';
 import { asObject, getArray, getNumber, getString, getStringArray, getText } from '../util.ts';
+import { effectiveAttrs, sortTypes } from './tree.ts';
 import type { Attrs, Direction, JsonValue, NodeKind, ViewNode } from './tree.ts';
 
-/** A raw schema (or reference), the file it appears in, and the `$ref` targets whose content holds it. */
+/** A raw schema (or reference), with the file and the JSON pointer where it appears. */
 export interface Located {
     raw: unknown;
     file: string;
-    enclosing: ReadonlySet<string>;
+    pointer: string;
 }
 
 export interface BuildContext {
@@ -32,25 +36,18 @@ export interface BuildContext {
     family: OasFamily;
     /** Collects problems that do not stop the build. A Set, so each problem shows once. */
     warnings: Set<string>;
-    /** How many nested `$ref` targets a schema expands. Deeper ones show by name only. */
-    maxRefDepth: number;
-    /** The most schema nodes that the document may build, a guard against huge specs. */
-    nodeBudget: number;
-    /** Schema nodes built so far. */
-    nodeCount: number;
+    /** Schema definitions by id. A definition under construction is already here, so a cycle finds it. */
+    schemas: Map<string, ViewNode>;
 }
-
-/** Thrown when a document builds more schema nodes than its budget allows. */
-export class TreeTooLarge extends Error {}
 
 export interface SchemaScope {
     direction: Direction;
-    /** Nesting depth, a guard against cycles made of YAML aliases instead of `$ref`s. */
+    /** Nesting depth of schemas built in place, a guard against cycles made of YAML aliases. */
     depth: number;
 }
 
-/** A schema with its `$ref`, `$ref` siblings, and `allOf` members merged. */
-export interface FlatSchema {
+/** A schema with its `allOf` members merged. */
+interface FlatSchema {
     /** Keywords where the first definition wins (outer schema before `allOf` members). */
     keywords: Record<string, unknown>;
     types?: Set<string>;
@@ -66,18 +63,10 @@ export interface FlatSchema {
     prefixItems: Located[][];
     composition?: { kind: 'oneOf' | 'anyOf'; members: Located[] };
     not: Located[];
-    /** Name of the first `$ref` target. */
+    /** Name of the first `$ref` target merged in. */
     name?: string;
-    /** Identities of the `$ref` targets merged into this schema. */
+    /** Identities of the `$ref` targets merged into this schema. A second visit adds nothing. */
     keys: Set<string>;
-    /** Set when the schema is only a reference back to an enclosing schema. */
-    recursive?: string;
-    /** A reference back to an enclosing schema, found inside an `allOf` or a null alternative. */
-    recursiveHit?: string;
-    /** Set when the schema is a reference deeper than `maxRefDepth`: it shows by name only. */
-    truncated?: string;
-    /** A reference deeper than `maxRefDepth`, found inside an `allOf` or a null alternative. */
-    truncatedHit?: string;
     unresolved?: string;
 }
 
@@ -102,18 +91,196 @@ const LOWER_LIMITS = ['minimum', 'exclusiveMinimum', 'minLength', 'minItems', 'm
 const UPPER_LIMITS = ['maximum', 'exclusiveMaximum', 'maxLength', 'maxItems', 'maxProperties'] as const;
 /** Flags: `allOf` members combine with OR. */
 const FLAGS = ['uniqueItems', 'readOnly', 'writeOnly', 'deprecated'] as const;
+/** Keywords next to a `$ref` that document the use, but leave the schema as it is. */
+const DOC_KEYWORDS = new Set(['description', 'summary', 'title', 'example', 'examples', 'deprecated', 'externalDocs', 'xml']);
 
-const TYPE_ORDER = ['string', 'number', 'integer', 'boolean', 'object', 'array', 'null'];
 const MAX_DEPTH = 64;
-const NOTHING: ReadonlySet<string> = new Set();
 
-/** A schema at the top of a tree (a parameter, a body): no enclosing `$ref` targets yet. */
-export function topLevel(raw: unknown, file: string): Located {
-    return { raw, file, enclosing: NOTHING };
+export function located(raw: unknown, file: string, pointer: string): Located {
+    return { raw, file, pointer };
 }
 
-/** Merge located schemas (an implicit `allOf`) into one flat schema. */
-export function flatten(locs: Located[], ctx: BuildContext): FlatSchema {
+// --- Nodes ------------------------------------------------------------------
+
+/**
+ * Build a node for a schema. `locs` holds the schema, or several schemas that
+ * combine like an `allOf`. `ownAttrs` come from the object that holds the
+ * schema (a parameter, a header, a property) and win over the schema facts.
+ */
+export function schemaNode(
+    kind: NodeKind,
+    key: string,
+    label: string,
+    locs: Located[],
+    scope: SchemaScope,
+    ctx: BuildContext,
+    ownAttrs: Attrs = {},
+): ViewNode {
+    const source = locs.length > 0 ? { file: locs[0].file, pointer: locs[0].pointer } : undefined;
+    const reference = locs.length === 1 ? asReference(locs[0], ctx) : undefined;
+    if (reference !== undefined) {
+        const target = ctx.store.deref(reference.raw, reference.file);
+        if (target.unresolved === undefined) {
+            const attrs = compact<Attrs>({ ...reference.docs, nullable: reference.nullable ? (true as const) : undefined, ...compact(ownAttrs) });
+            return { kind, key, label, direction: scope.direction, attrs, children: [], ref: definition(target, scope.direction, ctx), source };
+        }
+    }
+    const flat = flatten(locs, ctx);
+    const node: ViewNode = { kind, key, label, direction: scope.direction, attrs: { ...schemaAttrs(flat), ...compact(ownAttrs) }, children: [], source };
+    schemaChildren(node, flat, scope, ctx);
+    return node;
+}
+
+/**
+ * The id of the definition of a `$ref` target for one direction, built on
+ * first use. The node goes into the table before its children are built, so a
+ * reference cycle finds it.
+ */
+function definition(target: Resolved, direction: Direction, ctx: BuildContext): string {
+    const id = `${direction} ${target.key}`;
+    if (!ctx.schemas.has(id)) {
+        const flat = flatten([located(target.value, target.file, target.pointer ?? '#')], ctx, target);
+        const node: ViewNode = {
+            kind: 'schema',
+            key: id,
+            label: target.name ?? id,
+            direction,
+            attrs: schemaAttrs(flat),
+            children: [],
+            source: { file: target.file, pointer: target.pointer ?? '#' },
+        };
+        ctx.schemas.set(id, node);
+        schemaChildren(node, flat, { direction, depth: 0 }, ctx);
+    }
+    return id;
+}
+
+/** A schema that only refers to another one, with the documentation keywords of the use. */
+interface Reference {
+    /** The `$ref` object. */
+    raw: unknown;
+    file: string;
+    /** Documentation facts of the use, for example a description next to the `$ref`. */
+    docs: Attrs;
+    nullable: boolean;
+}
+
+/**
+ * The reference that a schema stands for: `{$ref}` with at most
+ * documentation keywords next to it, a one-member `allOf` around such a
+ * reference, or such a reference with a `{type: 'null'}` alternative (the 3.1
+ * form of a nullable reference). `undefined` for any other schema.
+ */
+function asReference(loc: Located, ctx: BuildContext): Reference | undefined {
+    const schema = asObject(loc.raw);
+    if (schema === undefined) {
+        return undefined;
+    }
+    if (typeof schema.$ref === 'string') {
+        // 3.0 documents often write `nullable: true` next to a `$ref`.
+        const rest = { ...schema };
+        delete rest.$ref;
+        delete rest.nullable;
+        return onlyDocs(rest) ? { raw: loc.raw, file: loc.file, docs: docAttrs(rest), nullable: schema.nullable === true } : undefined;
+    }
+    const s = ctx.family === '3.0' ? upgradeSchema30(schema) : schema;
+    const { allOf, oneOf, anyOf, ...rest } = s;
+    if (!onlyDocs(rest) || [allOf, oneOf, anyOf].filter((list) => list !== undefined).length !== 1) {
+        return undefined;
+    }
+    const wrap = (inner: Reference | undefined, nullable: boolean): Reference | undefined =>
+        inner === undefined ? undefined : { ...inner, docs: { ...inner.docs, ...docAttrs(rest) }, nullable: inner.nullable || nullable };
+    const allOfMembers = getArray(allOf);
+    if (allOfMembers.length === 1) {
+        return wrap(asReference(located(allOfMembers[0], loc.file, loc.pointer), ctx), false);
+    }
+    const members = getArray(oneOf ?? anyOf);
+    const others = members.filter((member) => !isNullSchema(member));
+    if (members.length === 2 && others.length === 1) {
+        return wrap(asReference(located(others[0], loc.file, loc.pointer), ctx), true);
+    }
+    return undefined;
+}
+
+function onlyDocs(keywords: Record<string, unknown>): boolean {
+    return Object.keys(keywords).every((key) => DOC_KEYWORDS.has(key) || key.startsWith('x-'));
+}
+
+function docAttrs(keywords: Record<string, unknown>): Attrs {
+    return compact({
+        title: getText(keywords.title),
+        description: getText(keywords.description) ?? getText(keywords.summary),
+        deprecated: keywords.deprecated === true ? true : undefined,
+        example: (keywords.example ?? getArray(keywords.examples)[0]) as JsonValue | undefined,
+    });
+}
+
+/** Add the child nodes of a schema (properties, items, variants) to `node`. */
+function schemaChildren(node: ViewNode, flat: FlatSchema, scope: SchemaScope, ctx: BuildContext): void {
+    if (scope.depth >= MAX_DEPTH) {
+        ctx.warnings.add(`A schema nests deeper than ${MAX_DEPTH} levels. The deeper levels are not shown.`);
+        return;
+    }
+    const inner: SchemaScope = { direction: scope.direction, depth: scope.depth + 1 };
+    const children = node.children;
+
+    // A readOnly property does not occur in requests, and a writeOnly property does not occur in responses.
+    const hidden = scope.direction === 'request' ? 'readOnly' : 'writeOnly';
+    for (const [name, locs] of flat.properties) {
+        const own: Attrs = flat.required.has(name) ? { required: true } : {};
+        const property = schemaNode('property', name, name, locs, inner, ctx, own);
+        if (effectiveAttrs(property, (id) => ctx.schemas.get(id))[hidden] === true) {
+            node.omitted = { ...node.omitted, [name]: hidden };
+            continue;
+        }
+        children.push(property);
+    }
+    for (const [pattern, locs] of flat.patternProperties) {
+        children.push(schemaNode('patternProperty', `/${pattern}/`, `/${pattern}/`, locs, inner, ctx));
+    }
+    if (flat.additionalProperties !== false && flat.additionalProperties.length > 0) {
+        children.push(schemaNode('additionalProperties', '*', 'additional properties', flat.additionalProperties, inner, ctx));
+    }
+    flat.prefixItems.forEach((locs, i) => {
+        children.push(schemaNode('items', `[${i}]`, `[${i}]`, locs, inner, ctx));
+    });
+    if (flat.items.length > 0) {
+        children.push(schemaNode('items', '[]', 'items', flat.items, inner, ctx));
+    }
+    if (flat.composition !== undefined) {
+        children.push(...variantNodes(flat.composition.members, inner, ctx));
+    }
+    if (flat.not.length > 0) {
+        children.push(schemaNode('not', 'not', 'not', flat.not, inner, ctx));
+    }
+}
+
+/**
+ * Nodes for `oneOf`/`anyOf` members. The key must survive the insertion of a
+ * new member, so it is the schema name when unique, else the type when
+ * unique, else the position.
+ */
+function variantNodes(members: Located[], scope: SchemaScope, ctx: BuildContext): ViewNode[] {
+    const nodes = members.map((member) => schemaNode('variant', '', '', [member], scope, ctx));
+    const facts = nodes.map((node) => effectiveAttrs(node, (id) => ctx.schemas.get(id)));
+    const names = facts.map((attrs) => attrs.title);
+    const types = facts.map((attrs) => attrs.type?.join(' | '));
+    const isUnique = (value: string | undefined, all: (string | undefined)[]) =>
+        value !== undefined && all.filter((v) => v === value).length === 1;
+    return nodes.map((node, i) => {
+        const named = isUnique(names[i], names) ? names[i] : isUnique(types[i], types) ? types[i] : undefined;
+        return { ...node, key: named ?? `#${i + 1}`, label: named ?? `option ${i + 1}` };
+    });
+}
+
+// --- Flattening -------------------------------------------------------------
+
+/**
+ * Merge located schemas (an implicit `allOf`) into one flat schema.
+ * `identity` is the `$ref` target that the schema defines, if any: it counts
+ * as merged already, so an `allOf` that refers back to it adds nothing.
+ */
+function flatten(locs: Located[], ctx: BuildContext, identity?: Resolved): FlatSchema {
     const flat: FlatSchema = {
         keywords: {},
         required: new Set(),
@@ -123,41 +290,24 @@ export function flatten(locs: Located[], ctx: BuildContext): FlatSchema {
         items: [],
         prefixItems: [],
         not: [],
-        keys: new Set(),
+        keys: new Set(identity?.key === undefined ? [] : [identity.key]),
+        name: identity?.name,
     };
-    locs.forEach((loc, i) => collect(loc, flat, ctx, i === 0));
-    if (hasNoContent(flat)) {
-        flat.recursive ??= flat.recursiveHit;
-        flat.truncated ??= flat.recursive === undefined ? flat.truncatedHit : undefined;
+    for (const loc of locs) {
+        collect(loc, flat, ctx);
     }
     return flat;
 }
 
-function collect(loc: Located, flat: FlatSchema, ctx: BuildContext, isTop: boolean): void {
+function collect(loc: Located, flat: FlatSchema, ctx: BuildContext): void {
     const target = ctx.store.deref(loc.raw, loc.file);
     if (target.unresolved !== undefined) {
         flat.unresolved ??= target.unresolved;
         ctx.warnings.add(`Unresolved $ref "${target.unresolved}" in ${ctx.store.display(loc.file)}${target.reason ? ` (${target.reason})` : ''}`);
         return;
     }
-    let enclosing = loc.enclosing;
+    let pointer = loc.pointer;
     if (target.key !== undefined) {
-        if (enclosing.has(target.key)) {
-            if (isTop) {
-                flat.recursive = target.name;
-            } else {
-                flat.recursiveHit ??= target.name;
-            }
-            return;
-        }
-        if (enclosing.size >= ctx.maxRefDepth) {
-            if (isTop) {
-                flat.truncated = target.name;
-            } else {
-                flat.truncatedHit ??= target.name;
-            }
-            return;
-        }
         if (flat.keys.has(target.key)) {
             return; // The same schema twice in one allOf chain adds nothing.
         }
@@ -168,21 +318,21 @@ function collect(loc: Located, flat: FlatSchema, ctx: BuildContext, isTop: boole
         const siblings = { ...asObject(loc.raw) };
         delete siblings.$ref;
         if (Object.keys(siblings).length > 0) {
-            merge(siblings, loc.file, enclosing, flat, ctx);
+            merge(siblings, loc.file, loc.pointer, flat, ctx);
         }
-        enclosing = new Set([...enclosing, target.key]);
+        pointer = target.pointer ?? '#';
     }
     if (target.value === false) {
         // The boolean schema `false` allows no value at all.
-        merge({ not: {} }, target.file, enclosing, flat, ctx);
+        merge({ not: {} }, target.file, pointer, flat, ctx);
     }
     const schema = asObject(target.value);
     if (schema !== undefined) {
-        merge(schema, target.file, enclosing, flat, ctx);
+        merge(schema, target.file, pointer, flat, ctx);
     }
 }
 
-function merge(raw: Record<string, unknown>, file: string, enclosing: ReadonlySet<string>, flat: FlatSchema, ctx: BuildContext): void {
+function merge(raw: Record<string, unknown>, file: string, pointer: string, flat: FlatSchema, ctx: BuildContext): void {
     const s = ctx.family === '3.0' ? upgradeSchema30(raw) : raw;
     const kw = flat.keywords;
 
@@ -221,53 +371,52 @@ function merge(raw: Record<string, unknown>, file: string, enclosing: ReadonlySe
         flat.required.add(name);
     }
 
-    const at = (raw: unknown): Located => ({ raw, file, enclosing });
+    const at = (value: unknown, ...parts: (string | number)[]): Located => located(value, file, appendPointer(pointer, ...parts));
     // `unevaluatedProperties` is the 3.1 way to close an object that `allOf` builds.
-    for (const extra of [s.additionalProperties, s.unevaluatedProperties]) {
+    for (const keyword of ['additionalProperties', 'unevaluatedProperties'] as const) {
+        const extra = s[keyword];
         if (extra === false) {
             flat.additionalProperties = false;
         } else if (isRestrictingSchema(extra) && flat.additionalProperties !== false) {
-            flat.additionalProperties.push(at(extra));
+            flat.additionalProperties.push(at(extra, keyword));
         }
     }
     if (isRestrictingSchema(s.items) || s.items === false) {
-        flat.items.push(at(s.items));
+        flat.items.push(at(s.items, 'items'));
     }
-    getArray(s.prefixItems).forEach((item, i) => (flat.prefixItems[i] ??= []).push(at(item)));
+    getArray(s.prefixItems).forEach((item, i) => (flat.prefixItems[i] ??= []).push(at(item, 'prefixItems', i)));
     for (const kind of ['oneOf', 'anyOf'] as const) {
         // `oneOf: [X, {type: 'null'}]` means "X or null". Show it as X with a "null" type.
-        const members = getArray(s[kind]);
-        const others = members.filter((member) => !isNullSchema(member));
+        const members = getArray(s[kind]).map((member, i) => at(member, kind, i));
+        const others = members.filter((member) => !isNullSchema(member.raw));
         if (others.length < members.length) {
             flat.nullable = true;
         }
         if (others.length === 1) {
-            collect(at(others[0]), flat, ctx, false);
+            collect(others[0], flat, ctx);
         } else if (others.length > 1) {
             if (flat.composition === undefined) {
-                flat.composition = { kind, members: others.map(at) };
+                flat.composition = { kind, members: others };
             } else {
                 ctx.warnings.add(`A schema in ${ctx.store.display(file)} combines several oneOf/anyOf lists. Only the first one is compared.`);
             }
         }
     }
     if (asObject(s.not) !== undefined) {
-        flat.not.push(at(s.not));
+        flat.not.push(at(s.not, 'not'));
     }
     // Members first, so inherited properties show before the schema's own ones.
-    for (const member of getArray(s.allOf)) {
-        collect(at(member), flat, ctx, false);
-    }
+    getArray(s.allOf).forEach((member, i) => collect(at(member, 'allOf', i), flat, ctx));
     for (const [name, prop] of Object.entries(asObject(s.properties) ?? {})) {
-        appendTo(flat.properties, name, at(prop));
+        appendTo(flat.properties, name, at(prop, 'properties', name));
     }
     for (const [pattern, prop] of Object.entries(asObject(s.patternProperties) ?? {})) {
-        appendTo(flat.patternProperties, pattern, at(prop));
+        appendTo(flat.patternProperties, pattern, at(prop, 'patternProperties', pattern));
     }
 }
 
 /** The facts of a flat schema as node attributes. */
-export function schemaAttrs(flat: FlatSchema): Attrs {
+function schemaAttrs(flat: FlatSchema): Attrs {
     const kw = flat.keywords;
     const attrs: Attrs = {};
     const set = <K extends keyof Attrs>(key: K, value: Attrs[K] | undefined) => {
@@ -306,127 +455,8 @@ export function schemaAttrs(flat: FlatSchema): Attrs {
     }
     const defaultMapping = getString(discriminator?.defaultMapping);
     set('defaultMapping', defaultMapping === undefined ? undefined : refName(defaultMapping));
-    set('recursive', flat.recursive);
-    set('truncated', flat.truncated);
     set('unresolved', flat.unresolved);
     return attrs;
-}
-
-/**
- * Build a node for a schema. `ownAttrs` come from the object that holds the
- * schema (a parameter, a header, a property) and win over the schema facts.
- */
-export function schemaNode(
-    kind: NodeKind,
-    key: string,
-    label: string,
-    flat: FlatSchema,
-    scope: SchemaScope,
-    ctx: BuildContext,
-    ownAttrs: Attrs = {},
-): ViewNode {
-    if (++ctx.nodeCount > ctx.nodeBudget) {
-        throw new TreeTooLarge();
-    }
-    const attrs: Attrs = { ...ownAttrs };
-    for (const [name, value] of Object.entries(schemaAttrs(flat))) {
-        if ((attrs as Record<string, unknown>)[name] === undefined) {
-            (attrs as Record<string, unknown>)[name] = value;
-        }
-    }
-    const node: ViewNode = { kind, key, label, direction: scope.direction, attrs, children: [] };
-    if (flat.recursive === undefined && flat.truncated === undefined) {
-        schemaChildren(node, flat, scope, ctx);
-    }
-    return node;
-}
-
-/** Build a node for located schemas in one step. */
-export function buildSchemaNode(
-    kind: NodeKind,
-    key: string,
-    label: string,
-    locs: Located[],
-    scope: SchemaScope,
-    ctx: BuildContext,
-    ownAttrs: Attrs = {},
-): ViewNode {
-    return schemaNode(kind, key, label, flatten(locs, ctx), scope, ctx, ownAttrs);
-}
-
-/** Add the child nodes of a schema (properties, items, variants) to `node`. */
-function schemaChildren(node: ViewNode, flat: FlatSchema, scope: SchemaScope, ctx: BuildContext): void {
-    if (scope.depth >= MAX_DEPTH) {
-        ctx.warnings.add(`A schema nests deeper than ${MAX_DEPTH} levels. The deeper levels are not shown.`);
-        return;
-    }
-    const inner: SchemaScope = { direction: scope.direction, depth: scope.depth + 1 };
-    const children = node.children;
-
-    // A readOnly property does not occur in requests, and a writeOnly property does not occur in responses.
-    const hidden = scope.direction === 'request' ? 'readOnly' : 'writeOnly';
-    for (const [name, locs] of flat.properties) {
-        const prop = flatten(locs, ctx);
-        if (prop.keywords[hidden] === true) {
-            node.omitted = { ...node.omitted, [name]: hidden };
-            continue;
-        }
-        const own: Attrs = flat.required.has(name) ? { required: true } : {};
-        children.push(schemaNode('property', name, name, prop, inner, ctx, own));
-    }
-    for (const [pattern, locs] of flat.patternProperties) {
-        children.push(buildSchemaNode('patternProperty', `/${pattern}/`, `/${pattern}/`, locs, inner, ctx));
-    }
-    if (flat.additionalProperties !== false && flat.additionalProperties.length > 0) {
-        children.push(buildSchemaNode('additionalProperties', '*', 'additional properties', flat.additionalProperties, inner, ctx));
-    }
-    flat.prefixItems.forEach((locs, i) => {
-        children.push(buildSchemaNode('items', `[${i}]`, `[${i}]`, locs, inner, ctx));
-    });
-    if (flat.items.length > 0) {
-        children.push(buildSchemaNode('items', '[]', 'items', flat.items, inner, ctx));
-    }
-    if (flat.composition !== undefined) {
-        children.push(...variantNodes(flat.composition.members, inner, ctx));
-    }
-    if (flat.not.length > 0) {
-        children.push(buildSchemaNode('not', 'not', 'not', flat.not, inner, ctx));
-    }
-}
-
-/**
- * Nodes for `oneOf`/`anyOf` members. The key must survive the insertion of a
- * new member, so it is the schema name when unique, else the type when
- * unique, else the position.
- */
-function variantNodes(members: Located[], scope: SchemaScope, ctx: BuildContext): ViewNode[] {
-    const flats = members.map((member) => flatten([member], ctx));
-    const names = flats.map((flat) => getText(flat.keywords.title) ?? flat.name ?? flat.recursive);
-    const types = flats.map((flat) => inferTypes(flat)?.join(' | '));
-    const isUnique = (value: string | undefined, all: (string | undefined)[]) =>
-        value !== undefined && all.filter((v) => v === value).length === 1;
-    return flats.map((flat, i) => {
-        const named = isUnique(names[i], names) ? names[i] : isUnique(types[i], types) ? types[i] : undefined;
-        return named === undefined
-            ? schemaNode('variant', `#${i + 1}`, `option ${i + 1}`, flat, scope, ctx)
-            : schemaNode('variant', named, named, flat, scope, ctx);
-    });
-}
-
-/** The schema carries its own facts, apart from references to enclosing schemas. */
-function hasNoContent(flat: FlatSchema): boolean {
-    return (
-        flat.types === undefined &&
-        flat.enumValues === undefined &&
-        flat.properties.size === 0 &&
-        flat.patternProperties.size === 0 &&
-        flat.additionalProperties !== false &&
-        flat.additionalProperties.length === 0 &&
-        flat.items.length === 0 &&
-        flat.prefixItems.length === 0 &&
-        flat.composition === undefined &&
-        flat.not.length === 0
-    );
 }
 
 /** A schema object that restricts values. `{}` and `true` allow everything. */
@@ -468,10 +498,7 @@ function inferTypes(flat: FlatSchema): string[] | undefined {
             return undefined;
         }
     }
-    if (flat.nullable) {
-        types = new Set([...types, 'null']);
-    }
-    return [...types].sort((a, b) => typeRank(a) - typeRank(b));
+    return sortTypes(flat.nullable ? [...types, 'null'] : [...types]);
 }
 
 /** `{type: 'null'}`, with at most a title or description. */
@@ -482,11 +509,6 @@ function isNullSchema(raw: unknown): boolean {
     }
     const type = Array.isArray(schema.type) && schema.type.length === 1 ? schema.type[0] : schema.type;
     return type === 'null' && Object.keys(schema).every((key) => ['type', 'title', 'description'].includes(key));
-}
-
-function typeRank(type: string): number {
-    const rank = TYPE_ORDER.indexOf(type);
-    return rank === -1 ? TYPE_ORDER.length : rank;
 }
 
 function appendTo<K>(map: Map<K, Located[]>, key: K, loc: Located): void {
@@ -501,4 +523,9 @@ function appendTo<K>(map: Map<K, Located[]>, key: K, loc: Located): void {
 /** The last segment of a reference: `Cat` for `#/components/schemas/Cat`. A plain name stays as it is. */
 function refName(ref: string): string {
     return ref.slice(ref.lastIndexOf('/') + 1);
+}
+
+/** A copy without `undefined` values, so absent facts compare equal to omitted ones. */
+function compact<T extends object>(attrs: T): T {
+    return Object.fromEntries(Object.entries(attrs).filter(([, value]) => value !== undefined)) as T;
 }

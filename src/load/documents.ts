@@ -8,7 +8,8 @@
  */
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, extname, resolve } from 'node:path';
-import { parseDocument } from 'yaml';
+import { LineCounter, isMap, isNode, isScalar, isSeq, parseDocument } from 'yaml';
+import type { Document as YamlDocument } from 'yaml';
 import { InputError } from '../errors.ts';
 import { refString, tryDecode } from '../util.ts';
 import { getByParts, partsToPointer, pointerToParts } from './json-pointer.ts';
@@ -18,8 +19,10 @@ export interface Resolved {
     value: unknown;
     /** Absolute path of the file that holds `value`. */
     file: string;
-    /** Identity of the target (`<file>#<pointer>`), for cycle detection. Set when the node was a reference. */
+    /** Identity of the target (`<file>#<pointer>`). Set when the node was a reference. */
     key?: string;
+    /** JSON pointer of the target in `file`, for example `#/components/schemas/Pet`. Set when the node was a reference. */
+    pointer?: string;
     /** Name of the target: the last pointer token (`Pet` for `#/components/schemas/Pet`), or the file name. */
     name?: string;
     /** The reference that failed to resolve. `value` is then `undefined`. */
@@ -32,6 +35,7 @@ interface Target {
     value: unknown;
     file: string;
     key: string;
+    pointer: string;
     name: string;
 }
 
@@ -83,6 +87,10 @@ export class DocumentStore {
     private readonly targets = new Map<string, Target | undefined>();
     /** Files whose references {@link loadWithRefs} already followed. */
     private readonly walked = new Set<string>();
+    /** The text of each loaded file, for {@link lineOf}. */
+    private readonly texts = new Map<string, string>();
+    /** Parsed YAML documents with positions, built on the first {@link lineOf} call for a file. */
+    private readonly positions = new Map<string, { doc: YamlDocument; lineCounter: LineCounter }>();
     private readonly readText: ReadText;
     /** How to name a file in messages, for example relative to the current folder. */
     readonly display: (path: string) => string;
@@ -107,6 +115,7 @@ export class DocumentStore {
         }
         const root = parseSpecText(text, this.display(file));
         this.docs.set(file, root);
+        this.texts.set(file, text);
         return root;
     }
 
@@ -184,12 +193,49 @@ export class DocumentStore {
         if (value === undefined) {
             return undefined;
         }
+        const pointer = parts.length > 0 ? partsToPointer(parts) : '#';
         return {
             value,
             file,
-            key: `${file}${partsToPointer(parts)}`,
+            key: `${file}${pointer}`,
+            pointer,
             name: parts.length > 0 ? parts[parts.length - 1] : basename(file, extname(file)),
         };
+    }
+
+    /**
+     * The 1-based line of the node at `pointer` in a loaded file: the line of
+     * its key for a map entry, or of the item for a list entry. `undefined`
+     * when the file or the node is not there. The first call per file parses
+     * the text again, with positions.
+     */
+    lineOf(path: string, pointer: string): number | undefined {
+        const file = resolve(path);
+        const text = this.texts.get(file);
+        if (text === undefined) {
+            return undefined;
+        }
+        let parsed = this.positions.get(file);
+        if (parsed === undefined) {
+            const lineCounter = new LineCounter();
+            parsed = { doc: parseDocument(text, { lineCounter, merge: true, uniqueKeys: false }), lineCounter };
+            this.positions.set(file, parsed);
+        }
+        const parts = pointerToParts(pointer);
+        if (parts.length === 0) {
+            return 1;
+        }
+        const parent = parts.length === 1 ? parsed.doc.contents : parsed.doc.getIn(parts.slice(0, -1), true);
+        const last = parts[parts.length - 1];
+        let offset: number | undefined;
+        if (isMap(parent)) {
+            const pair = parent.items.find((item) => isScalar(item.key) && String(item.key.value) === last);
+            offset = isScalar(pair?.key) ? pair.key.range?.[0] : undefined;
+        } else if (isSeq(parent)) {
+            const item = parent.items[Number(last)];
+            offset = isNode(item) ? item.range?.[0] : undefined;
+        }
+        return offset === undefined ? undefined : parsed.lineCounter.linePos(offset).line;
     }
 }
 

@@ -3,10 +3,46 @@
  * badges, and value formatting. They return plain text, so the console
  * renderer and a future HTML renderer describe facts the same way.
  */
-import type { AttrChange, DiffNode } from '../diff/report.ts';
+import { maxSeverity } from '../diff/report.ts';
+import type { AttrChange, ChangeStatus, DiffNode, Severity } from '../diff/report.ts';
+import { effectiveAttrs } from '../model/tree.ts';
 import type { AttrName, Attrs, JsonValue } from '../model/tree.ts';
 import { defaultExplode, defaultStyle } from '../oas/serialization.ts';
 import { canonicalJson, jsonDifference } from '../util.ts';
+
+/** Looks up a definition diff by id: the `schemas` table of one document diff. */
+export type Definitions = (id: string) => DiffNode | undefined;
+
+/**
+ * A node as a renderer shows it. A node with `ref` shows its definition: the
+ * definition's facts under its own, the changes of both, and the definition's
+ * children. The status and severity cover both, so a use site shows `~` when
+ * the schema it refers to changed.
+ */
+export interface Shown {
+    node: DiffNode;
+    attrs: Attrs;
+    changes: AttrChange[];
+    children: DiffNode[];
+    status: ChangeStatus;
+    severity?: Severity;
+}
+
+export function show(node: DiffNode, definitions: Definitions): Shown {
+    const definition = node.ref === undefined ? undefined : definitions(node.ref);
+    if (definition === undefined) {
+        return { node, attrs: node.attrs, changes: node.changes, children: node.children, status: node.status, severity: node.verdict?.severity };
+    }
+    const definitionChanged = node.status === 'unchanged' && definition.status === 'changed';
+    return {
+        node,
+        attrs: effectiveAttrs(node, definitions),
+        changes: [...node.changes, ...(node.status === 'unchanged' || node.status === 'changed' ? definition.changes : [])],
+        children: [...definition.children, ...node.children],
+        status: definitionChanged ? 'changed' : node.status,
+        severity: definitionChanged ? maxSeverity(node.verdict?.severity, definition.verdict?.severity) : node.verdict?.severity,
+    };
+}
 
 /** A value as short text: strings as they are, everything else as compact JSON. */
 export function formatValue(value: unknown, maxLength = 80): string {
@@ -14,28 +50,26 @@ export function formatValue(value: unknown, maxLength = 80): string {
     return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
 
-/** `string<email>`, `integer<int64> | null`, `array[Pet]`, `Pet`, `one of`. */
-export function typeLabel(node: Pick<DiffNode, 'attrs' | 'children'>): string {
-    const a = node.attrs;
-    if (a.recursive !== undefined) {
-        return `${a.recursive} (recursive)${a.nullable ? ' | null' : ''}`;
+/** `string<email>`, `integer<int64> | null`, `array[Pet]`, `Pet`, `one of`. `depth` stops arrays of themselves. */
+export function typeLabel(node: DiffNode, definitions: Definitions, depth = 0): string {
+    if (depth > 8) {
+        return '…';
     }
-    if (a.truncated !== undefined) {
-        return `${a.truncated} (not expanded)${a.nullable ? ' | null' : ''}`;
-    }
+    const shown = show(node, definitions);
+    const a = shown.attrs;
     if (a.unresolved !== undefined) {
         return `unresolved $ref ${a.unresolved}`;
     }
     const types = a.type ?? [];
-    const named = types.filter((type) => type !== 'null').map((type) => singleTypeLabel(type, node));
-    const stream = node.children.find((child) => child.kind === 'items' && child.key === 'itemSchema');
+    const named = types.filter((type) => type !== 'null').map((type) => singleTypeLabel(type, shown, definitions, depth));
+    const stream = shown.children.find((child) => child.kind === 'items' && child.key === 'itemSchema');
     if (named.length === 0) {
         if (a.composition !== undefined) {
             named.push(a.composition === 'oneOf' ? 'one of' : 'any of');
         } else if (a.const !== undefined) {
             named.push(a.const === null ? 'null' : Array.isArray(a.const) ? 'array' : typeof a.const);
         } else if (stream !== undefined) {
-            named.push(`stream of ${typeLabel(stream)}`);
+            named.push(`stream of ${typeLabel(stream, definitions, depth + 1)}`);
         } else if (types.length === 0) {
             named.push('any');
         }
@@ -43,11 +77,11 @@ export function typeLabel(node: Pick<DiffNode, 'attrs' | 'children'>): string {
     return types.includes('null') || a.nullable ? [...named, 'null'].join(' | ') : named.join(' | ');
 }
 
-function singleTypeLabel(type: string, node: Pick<DiffNode, 'attrs' | 'children'>): string {
-    const a = node.attrs;
+function singleTypeLabel(type: string, shown: Shown, definitions: Definitions, depth: number): string {
+    const a = shown.attrs;
     if (type === 'array') {
-        const items = arrayItems(node);
-        return `array[${items === undefined ? 'any' : typeLabel(items)}]`;
+        const items = arrayItems(shown.children);
+        return `array[${items === undefined ? 'any' : typeLabel(items, definitions, depth + 1)}]`;
     }
     if (type === 'object' && a.title !== undefined) {
         return a.title;
@@ -56,8 +90,8 @@ function singleTypeLabel(type: string, node: Pick<DiffNode, 'attrs' | 'children'
 }
 
 /** The `items` child of an array node, when it has one. */
-export function arrayItems<T extends Pick<DiffNode, 'children'>>(node: T): T['children'][number] | undefined {
-    return node.children.find((child) => child.kind === 'items' && child.key === '[]');
+export function arrayItems(children: DiffNode[]): DiffNode | undefined {
+    return children.find((child) => child.kind === 'items' && child.key === '[]');
 }
 
 /**
@@ -65,9 +99,9 @@ export function arrayItems<T extends Pick<DiffNode, 'children'>>(node: T): T['ch
  * fields below), or `undefined` when the items need a row of their own: they
  * were added or removed while the array stayed.
  */
-export function inlineItems(node: DiffNode): DiffNode | undefined {
-    const items = arrayItems(node);
-    return items !== undefined && (items.status === 'unchanged' || items.status === 'changed' || items.status === node.status) ? items : undefined;
+export function inlineItems(shown: Shown): DiffNode | undefined {
+    const items = arrayItems(shown.children);
+    return items !== undefined && (items.status === 'unchanged' || items.status === 'changed' || items.status === shown.node.status) ? items : undefined;
 }
 
 /** Short badges for the facts of a node, in display order. */

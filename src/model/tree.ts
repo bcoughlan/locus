@@ -3,6 +3,11 @@
  * OpenAPI document. Each endpoint is a tree of nodes (sections, parameters,
  * bodies, responses, schema properties). Each node holds typed attributes.
  *
+ * A `$ref` to a schema stays a reference: the node names a shared schema
+ * definition in {@link DocumentModel.schemas}, which the model builds once.
+ * The diff compares each pair of definitions once, and the renderers expand
+ * references while they print.
+ *
  * The diff compares two view trees node by node, and the renderers print the
  * result. Because both use the same tree, every change the diff finds is
  * visible, and every visible fact takes part in the diff.
@@ -42,10 +47,38 @@ export type NodeKind =
     /** A `oneOf` or `anyOf` member. */
     | 'variant'
     | 'not'
-    | 'callback';
+    | 'callback'
+    /** A schema definition in {@link DocumentModel.schemas}: the target of `$ref`s. */
+    | 'schema';
 
 /** Structural nodes have no facts of their own. Their status follows their children. */
 export const STRUCTURAL_KINDS: ReadonlySet<NodeKind> = new Set(['section', 'group']);
+
+const TYPE_ORDER = ['string', 'number', 'integer', 'boolean', 'object', 'array', 'null'];
+
+/** JSON Schema types in a canonical order, without repeats. */
+export function sortTypes(types: string[]): string[] {
+    const rank = (type: string) => (TYPE_ORDER.includes(type) ? TYPE_ORDER.indexOf(type) : TYPE_ORDER.length);
+    return [...new Set(types)].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * The facts that a node shows: the facts of its definition, under its own.
+ * A nullable reference adds "null" to the definition's types. Works for view
+ * nodes and diff nodes: `definitionOf` looks up the definition by `ref`.
+ */
+export function effectiveAttrs(node: { attrs: Attrs; ref?: string }, definitionOf: (ref: string) => { attrs: Attrs } | undefined): Attrs {
+    const definition = node.ref === undefined ? undefined : definitionOf(node.ref);
+    if (definition === undefined) {
+        return node.attrs;
+    }
+    const attrs: Attrs = { ...definition.attrs, ...node.attrs };
+    if (node.attrs.nullable && definition.attrs.type !== undefined) {
+        attrs.type = sortTypes([...definition.attrs.type, 'null']);
+        delete attrs.nullable;
+    }
+    return attrs;
+}
 
 export interface Attrs {
     // Documents
@@ -132,15 +165,19 @@ export interface Attrs {
     mapping?: Record<string, string>;
     /** 3.2: the schema for discriminator values without a mapping. */
     defaultMapping?: string;
-    /** The schema refers back to an enclosing schema with this name. The node has no children. */
-    recursive?: string;
-    /** The document is too large to expand this referenced schema here. It shows by name only. */
-    truncated?: string;
     /** A `$ref` that does not resolve. */
     unresolved?: string;
 }
 
 export type AttrName = keyof Attrs;
+
+/** Where a node is defined: a file and a JSON pointer into it. A UI can turn it into a line (`DocumentStore.lineOf`). */
+export interface Source {
+    /** Absolute path of the file. */
+    file: string;
+    /** JSON pointer, for example `#/components/schemas/Pet/properties/name`. */
+    pointer: string;
+}
 
 export interface ViewNode {
     kind: NodeKind;
@@ -149,8 +186,16 @@ export interface ViewNode {
     /** Display name: a property name, a status code, a media type. */
     label: string;
     direction: Direction;
+    /** The node's own facts. For a node with `ref`, the definition holds the schema facts. */
     attrs: Attrs;
     children: ViewNode[];
+    /**
+     * The id of a schema definition in {@link DocumentModel.schemas}. The node
+     * shows that schema: its facts (under the node's own facts) and its
+     * children. Such a node has no children of its own.
+     */
+    ref?: string;
+    source?: Source;
     /**
      * Properties that the schema has but this direction leaves out: readOnly
      * ones in requests, writeOnly ones in responses. The rules use it to
@@ -161,14 +206,18 @@ export interface ViewNode {
 
 /** One OpenAPI document as view trees. */
 export interface DocumentModel {
-    /** A `document` node with the document facts: title, version, OpenAPI version, description, servers. */
+    /** A `document` node with the document facts: title, version, description, servers. */
     info: ViewNode;
     /** Operations under `paths`, in document order. */
     operations: ViewNode[];
     /** Operations under `webhooks`, in document order. */
     webhooks: ViewNode[];
+    /**
+     * Schema definitions by id (`<direction> <file>#<pointer>`): the targets of
+     * the `ref`s in the trees. One per schema and direction, because a
+     * readOnly property shows in responses only.
+     */
+    schemas: Map<string, ViewNode>;
     /** Problems that did not stop the build, for example unresolved references. */
     warnings: string[];
-    /** How many nested `$ref` targets the schemas expand. `Infinity` for all of them. */
-    refDepth: number;
 }

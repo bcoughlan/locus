@@ -12,7 +12,8 @@ import type { ChalkInstance, ColorSupportLevel } from 'chalk';
 import { endpointOutcome } from '../diff/report.ts';
 import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, Severity } from '../diff/report.ts';
 import type { AttrName } from '../model/tree.ts';
-import { badges, describeChange, details, flowLabel, inlineItems, schemeLabel, typeLabel } from './format.ts';
+import { badges, describeChange, details, flowLabel, inlineItems, schemeLabel, show, typeLabel } from './format.ts';
+import type { Definitions } from './format.ts';
 
 /** Chalk color levels: 0 none, 1 basic 16 colors, 2 256 colors, 3 truecolor. */
 export type ColorLevel = ColorSupportLevel;
@@ -32,11 +33,24 @@ export function renderConsole(report: DiffReport, options: ConsoleOptions): stri
     return new ConsoleRenderer(options).render(report);
 }
 
+/**
+ * After this many lines in one endpoint, a referenced schema expands only when
+ * something inside it changed, and only once. Others show by name only.
+ */
+const LARGE_ENDPOINT = 400;
+
 class ConsoleRenderer {
     private readonly lines: string[] = [];
     private readonly c: ChalkInstance;
     private readonly orange: ChalkInstance;
     private readonly options: ConsoleOptions;
+    /** The definition diffs of the document being printed. */
+    private definitions: Definitions = () => undefined;
+    /** Definitions whose content is being printed: a reference to one of them is a cycle. */
+    private readonly open = new Set<string>();
+    /** Definitions printed in full in the current endpoint, and the line where that endpoint starts. */
+    private readonly printed = new Set<string>();
+    private endpointStart = 0;
 
     constructor(options: ConsoleOptions) {
         this.options = options;
@@ -58,6 +72,7 @@ class ConsoleRenderer {
     // --- Documents and endpoints ---------------------------------------------
 
     private document(doc: DocumentDiff): void {
+        this.definitions = (id) => doc.schemas[id];
         const tone = toneOf(doc.status, doc.impact);
         const name = doc.head ?? doc.base ?? doc.id;
         const note = doc.status === 'added' ? ' (new file)' : doc.status === 'removed' ? ' (deleted)' : '';
@@ -80,6 +95,10 @@ class ConsoleRenderer {
     }
 
     private operation(op: DiffNode, depth: number): void {
+        if (depth === 1) {
+            this.endpointStart = this.lines.length;
+            this.printed.clear();
+        }
         const outcome = endpointOutcome(op);
         const status: ChangeStatus = outcome === 'added' || outcome === 'removed' ? outcome : outcome === 'unchanged' ? 'unchanged' : 'changed';
         // The header shows the endpoint as a whole: its own verdict when added or removed, else the worst change inside.
@@ -171,50 +190,111 @@ class ConsoleRenderer {
 
     /**
      * A node that holds a schema: parameter, header, media type, property,
-     * items, variant. An array prints as one row, `array[T]`, with the item
-     * fields below it.
+     * items, variant. A reference prints its definition in place. An array
+     * prints as one row, `array[T]`, with the item fields below it.
      */
     private schema(node: DiffNode, depth: number): void {
-        const type = typeLabel(node);
+        const shown = show(node, this.definitions);
+        const stop = this.stopAt(node);
+        const items = stop === undefined ? inlineItems(shown) : undefined;
+        const itemsShown = items === undefined ? undefined : show(items, this.definitions);
+        const itemsStop = items === undefined ? undefined : this.stopAt(items);
+
+        const type = typeLabel(node, this.definitions);
         // A variant named after its schema would repeat the name: show the plain type instead.
-        const shownType = node.kind === 'variant' && type === node.label ? (node.attrs.type ?? ['any']).join(' | ') : type;
-        const facts = badges(node.attrs).map((fact) => (fact === 'required' ? fact : this.c.dim(fact)));
-        const items = inlineItems(node);
+        const plain = node.kind === 'variant' && type === node.label ? (shown.attrs.type ?? ['any']).join(' | ') : type;
+        const note = stop ?? itemsStop;
+        const facts = badges(shown.attrs).map((fact) => (fact === 'required' ? fact : this.c.dim(fact)));
         // The row also stands for its inline items, so it shows their change too.
-        const shown = node.status === 'unchanged' && items?.status === 'changed' ? { ...node, status: items.status, verdict: items.verdict } : node;
-        this.row(shown, depth, [node.label, this.c.cyan(shownType), ...facts].join('  '));
+        const itemsChanged = shown.status === 'unchanged' && itemsShown?.status === 'changed';
+        this.row(node, depth, [node.label, this.c.cyan(note === undefined ? plain : `${plain} (${note})`), ...facts].join('  '), {
+            status: itemsChanged ? 'changed' : shown.status,
+            severity: itemsChanged ? itemsShown?.severity : shown.severity,
+        });
 
         const inner = depth + 1;
-        this.text(node.attrs.description, node, inner, 'description');
-        for (const detail of details(node.attrs)) {
+        this.text(shown.attrs.description, node, inner, 'description', true, shown.changes);
+        for (const detail of details(shown.attrs)) {
             this.detail(node, inner, this.c.dim(detail));
         }
-        this.changes(node.changes, inner);
-        if (items !== undefined) {
-            const itemFacts = [...badges(items.attrs), ...details(items.attrs)];
-            if (itemFacts.length > 0) {
-                this.detail(items, inner, this.c.dim(`Items: ${itemFacts.join(', ')}`));
-            }
-            this.changes(items.changes, inner, 'items ');
-            this.children(items.children, inner);
+        this.changes(shown.changes, inner);
+        if (stop !== undefined) {
+            return;
         }
-        this.children(node.children.filter((child) => child !== items), inner);
+        this.inside(node.ref, () => {
+            if (items !== undefined && itemsShown !== undefined) {
+                const itemFacts = [...badges(itemsShown.attrs), ...details(itemsShown.attrs)];
+                if (itemFacts.length > 0) {
+                    this.detail(items, inner, this.c.dim(`Items: ${itemFacts.join(', ')}`));
+                }
+                this.changes(itemsShown.changes, inner, 'items ');
+                if (itemsStop === undefined) {
+                    this.inside(items.ref, () => this.children(itemsShown.children, inner));
+                }
+            }
+            this.children(shown.children.filter((child) => child !== items), inner);
+        });
+    }
+
+    /**
+     * Why a reference does not expand here: its definition is already open
+     * above it (a cycle). Or the endpoint is large, and the definition
+     * printed in full earlier, or has no change inside. In a spec where every
+     * schema links to others, full expansion reaches most of the spec, so a
+     * large endpoint shows the paths to its changes and names the rest.
+     */
+    private stopAt(node: DiffNode): 'recursive' | 'shown above' | 'not expanded' | undefined {
+        if (node.ref === undefined) {
+            return undefined;
+        }
+        if (this.open.has(node.ref)) {
+            return 'recursive';
+        }
+        if (this.lines.length - this.endpointStart <= LARGE_ENDPOINT) {
+            return undefined;
+        }
+        if (this.printed.has(node.ref)) {
+            return 'shown above';
+        }
+        const definition = this.definitions(node.ref);
+        const changedInside = definition?.impact !== undefined && definition.status !== 'added' && definition.status !== 'removed';
+        return changedInside ? undefined : 'not expanded';
+    }
+
+    /** Print inside the definition `ref`: a reference to it below here is a cycle. */
+    private inside(ref: string | undefined, print: () => void): void {
+        if (ref === undefined) {
+            print();
+            return;
+        }
+        this.open.add(ref);
+        this.printed.add(ref);
+        try {
+            print();
+        } finally {
+            this.open.delete(ref);
+        }
     }
 
     // --- Lines ---------------------------------------------------------------
 
-    /** The main line of a node: its marker, its text, and the reason when it is the root of an added or removed subtree. */
-    private row(node: DiffNode, depth: number, text: string): void {
-        const tone = rowTone(node);
-        this.line(MARKERS[node.status], depth, this.paint(tone, text + breakingTag(node.verdict)), tone);
+    /**
+     * The main line of a node: its marker, its text, and the reason when it is
+     * the root of an added or removed subtree. `shown` overrides the status
+     * and severity, for a row that also stands for a definition or inline items.
+     */
+    private row(node: DiffNode, depth: number, text: string, shown?: { status: ChangeStatus; severity?: Severity }): void {
+        const status = shown?.status ?? node.status;
+        const tone = toneOf(status, shown === undefined ? node.verdict?.severity : shown.severity);
+        this.line(MARKERS[status], depth, this.paint(tone, text + breakingTag(node.verdict)), tone);
     }
 
     /**
      * Free text of the attribute `attr`, one line per text line. When the text
      * changed, the change lines show it, so it does not print here too.
      */
-    private text(text: string | undefined, node: DiffNode, depth: number, attr: AttrName, dim = true): void {
-        if (changed(node, attr)) {
+    private text(text: string | undefined, node: DiffNode, depth: number, attr: AttrName, dim = true, changes = node.changes): void {
+        if (changes.some((change) => change.name === attr)) {
             return;
         }
         for (const line of text?.split('\n') ?? []) {

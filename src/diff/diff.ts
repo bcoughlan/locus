@@ -6,13 +6,18 @@
  * rules classify it once, and its descendants inherit that severity. A node
  * on both sides compares its attributes, and each changed attribute gets a
  * verdict from the rules.
+ *
+ * References: when both nodes refer to schema definitions, the diff compares
+ * the two definitions once, stores the result in the report's schema table,
+ * and every node with the same pair of references shares it. When only one
+ * node is a reference, it is expanded one level and compared in place.
  */
 import { isDeepStrictEqual } from 'node:util';
+import { STRUCTURAL_KINDS, effectiveAttrs } from '../model/tree.ts';
 import type { AttrName, DocumentModel, ViewNode } from '../model/tree.ts';
-import { STRUCTURAL_KINDS } from '../model/tree.ts';
 import { canonicalJson } from '../util.ts';
 import { endpointOutcome, maxSeverity } from './report.ts';
-import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, EndpointCounts, Severity } from './report.ts';
+import type { AttrChange, ChangeStatus, DiffNode, DiffReport, DocumentDiff, EndpointCounts, Severity, Verdict } from './report.ts';
 import { SET_ATTRS, TYPE_SPECIFIC_ATTRS, classifyAdded, classifyAttr, classifyRemoved, normalizePath, typesDisjoint } from './rules.ts';
 import type { Parents } from './rules.ts';
 
@@ -23,12 +28,23 @@ export interface DocumentSide {
     model: DocumentModel;
 }
 
+/** The schema definitions of both sides, and the definition diffs built from them. */
+interface DiffContext {
+    base: Map<string, ViewNode>;
+    head: Map<string, ViewNode>;
+    /** Definition diffs by id. An id is taken before its diff is done, so a reference cycle finds it. */
+    schemas: Map<string, DiffNode>;
+    /** Ids of definition diffs by what they compare: `<base ref>\0<head ref>`, or a one-sided key. */
+    ids: Map<string, string>;
+}
+
 /** Compare one document pair. A side is absent when the file exists in one version only. */
 export function diffDocument(id: string, base: DocumentSide | undefined, head: DocumentSide | undefined): DocumentDiff {
-    const info = diffNode(base?.model.info, head?.model.info);
+    const ctx: DiffContext = { base: base?.model.schemas ?? new Map(), head: head?.model.schemas ?? new Map(), schemas: new Map(), ids: new Map() };
+    const info = diffNode(base?.model.info, head?.model.info, {}, ctx);
     const servers = { base: base?.model.info.attrs.servers, head: head?.model.info.attrs.servers };
-    const operations = diffOperations(base?.model.operations ?? [], head?.model.operations ?? [], servers);
-    const webhooks = diffOperations(base?.model.webhooks ?? [], head?.model.webhooks ?? [], servers);
+    const operations = diffOperations(base?.model.operations ?? [], head?.model.operations ?? [], servers, ctx);
+    const webhooks = diffOperations(base?.model.webhooks ?? [], head?.model.webhooks ?? [], servers, ctx);
     const impact = [info, ...operations, ...webhooks].reduce<Severity | undefined>((max, node) => maxSeverity(max, node.impact), undefined);
     const status: ChangeStatus = base === undefined ? 'added' : head === undefined ? 'removed' : impact === undefined ? 'unchanged' : 'changed';
     return {
@@ -39,6 +55,7 @@ export function diffDocument(id: string, base: DocumentSide | undefined, head: D
         info,
         operations,
         webhooks,
+        schemas: Object.fromEntries(ctx.schemas),
         warnings: mergeWarnings(base?.model.warnings ?? [], head?.model.warnings ?? []),
         impact,
     };
@@ -59,37 +76,91 @@ export function buildReport(documents: DocumentDiff[], baseLabel: string, headLa
 }
 
 /** Compare two nodes. `parents` holds their parents on both sides, for rules that look at the context. */
-export function diffNode(base: ViewNode | undefined, head: ViewNode | undefined, parents: Parents = {}): DiffNode {
+function diffNode(base: ViewNode | undefined, head: ViewNode | undefined, parents: Parents, ctx: DiffContext): DiffNode {
     if (base !== undefined && head !== undefined) {
-        return diffMatched(base, head);
+        return diffMatched(base, head, ctx);
     }
     if (head !== undefined) {
-        return diffOneSided(head, 'added', parents);
+        return diffOneSided(head, 'added', parents, ctx);
     }
     if (base !== undefined) {
-        return diffOneSided(base, 'removed', parents);
+        return diffOneSided(base, 'removed', parents, ctx);
     }
     throw new Error('diffNode needs at least one node');
 }
 
-function diffMatched(base: ViewNode, head: ViewNode): DiffNode {
-    const children = pairChildren(base, head).map(([b, h]) => diffNode(b, h, { base, head }));
+function diffMatched(base: ViewNode, head: ViewNode, ctx: DiffContext): DiffNode {
+    if ((base.ref === undefined) !== (head.ref === undefined)) {
+        // A reference on one side only (a schema moved into or out of a component): compare in place.
+        return diffMatched(expand(base, ctx.base), expand(head, ctx.head), ctx);
+    }
+    const ref = base.ref !== undefined && head.ref !== undefined ? definitionDiff(base.ref, head.ref, ctx) : undefined;
+    const children = pairChildren(base, head).map(([b, h]) => diffNode(b, h, { base, head }, ctx));
     const changes = STRUCTURAL_KINDS.has(head.kind) ? [] : diffAttrs(base, head);
     const own = changes.reduce<Severity | undefined>((max, change) => maxSeverity(max, change.severity), undefined);
+    const inside = ref === undefined ? undefined : ctx.schemas.get(ref)?.impact;
     const node: DiffNode = {
-        kind: head.kind,
-        key: head.key,
-        label: head.label,
-        direction: head.direction,
-        status: changes.length > 0 ? 'changed' : 'unchanged',
+        ...copy(head, changes.length > 0 ? 'changed' : 'unchanged', children),
         verdict: own === undefined ? undefined : { severity: own },
-        attrs: head.attrs,
         changes,
-        children,
-        impact: children.reduce((max, child) => maxSeverity(max, child.impact), own),
+        ref,
+        source: { base: base.source, head: head.source },
+        impact: children.reduce((max, child) => maxSeverity(max, child.impact), maxSeverity(own, inside)),
     };
     // `not` reverses the meaning of everything inside it, so the directional rules do not apply.
     return head.kind === 'not' ? allBreaking(node) : node;
+}
+
+/**
+ * The diff of two schema definitions, by id in the context's table. Each pair
+ * is compared once. A reference cycle finds the id while the diff is still in
+ * progress; the enclosing node carries the impact.
+ */
+function definitionDiff(baseRef: string, headRef: string, ctx: DiffContext): string | undefined {
+    const base = ctx.base.get(baseRef);
+    const head = ctx.head.get(headRef);
+    if (base === undefined || head === undefined) {
+        return undefined;
+    }
+    return memo(`${baseRef}\0${headRef}`, head.label, ctx, () => diffMatched(base, head, ctx));
+}
+
+/**
+ * A definition shown as added or removed, for the reference of an added or
+ * removed node. It inherits the severity of that node.
+ */
+function oneSidedDefinition(ref: string, status: 'added' | 'removed', severity: Severity, ctx: DiffContext): string | undefined {
+    const definition = (status === 'added' ? ctx.head : ctx.base).get(ref);
+    if (definition === undefined) {
+        return undefined;
+    }
+    return memo(`${status}\0${severity}\0${ref}`, definition.label, ctx, () => inherit(definition, status, severity, ctx));
+}
+
+/** Take an id for `key`, then build its entry. The id exists before the build, so a cycle finds it. */
+function memo(key: string, label: string, ctx: DiffContext, build: () => DiffNode): string {
+    let id = ctx.ids.get(key);
+    if (id === undefined) {
+        id = `${label}#${ctx.ids.size + 1}`;
+        ctx.ids.set(key, id);
+        ctx.schemas.set(id, build());
+    }
+    return id;
+}
+
+/** A reference node as an inline node: its definition's facts under its own, and the definition's children. */
+function expand(node: ViewNode, schemas: Map<string, ViewNode>): ViewNode {
+    const definition = node.ref === undefined ? undefined : schemas.get(node.ref);
+    if (definition === undefined) {
+        return node;
+    }
+    return {
+        ...node,
+        attrs: effectiveAttrs(node, (id) => schemas.get(id)),
+        children: [...definition.children, ...node.children],
+        omitted: definition.omitted,
+        ref: undefined,
+    };
 }
 
 function allBreaking(node: DiffNode): DiffNode {
@@ -112,24 +183,31 @@ function allBreaking(node: DiffNode): DiffNode {
  * of its own, so each child is classified on its own. Any other node is
  * classified once, and its subtree inherits the severity.
  */
-function diffOneSided(node: ViewNode, status: 'added' | 'removed', parents: Parents): DiffNode {
+function diffOneSided(node: ViewNode, status: 'added' | 'removed', parents: Parents, ctx: DiffContext): DiffNode {
     if (STRUCTURAL_KINDS.has(node.kind)) {
         const own: Parents = status === 'added' ? { head: node } : { base: node };
-        const children = node.children.map((child) => diffOneSided(child, status, own));
+        const children = node.children.map((child) => diffOneSided(child, status, own, ctx));
         const impact = children.reduce<Severity | undefined>((max, child) => maxSeverity(max, child.impact), undefined);
         return { ...copy(node, status, children), verdict: impact === undefined ? undefined : { severity: impact }, impact };
     }
     const verdict = status === 'added' ? classifyAdded(node, parents) : classifyRemoved(node, parents);
-    const inherit = (child: ViewNode): DiffNode => ({
-        ...copy(child, status, child.children.map(inherit)),
-        verdict: { severity: verdict.severity },
-        impact: verdict.severity,
-    });
-    return { ...copy(node, status, node.children.map(inherit)), verdict, impact: verdict.severity };
+    return { ...inherit(node, status, verdict.severity, ctx), verdict };
+}
+
+/** A node and its subtree, all with the same status and severity. References point to one-sided definitions. */
+function inherit(node: ViewNode, status: 'added' | 'removed', severity: Severity, ctx: DiffContext): DiffNode {
+    const verdict: Verdict | { severity: Severity } = { severity };
+    return {
+        ...copy(node, status, node.children.map((child) => inherit(child, status, severity, ctx))),
+        verdict,
+        ref: node.ref === undefined ? undefined : oneSidedDefinition(node.ref, status, severity, ctx),
+        impact: severity,
+    };
 }
 
 function copy(node: ViewNode, status: ChangeStatus, children: DiffNode[]): DiffNode {
-    return { kind: node.kind, key: node.key, label: node.label, direction: node.direction, status, attrs: node.attrs, changes: [], children };
+    const source = node.source === undefined ? undefined : status === 'removed' ? { base: node.source } : { head: node.source };
+    return { kind: node.kind, key: node.key, label: node.label, direction: node.direction, status, attrs: node.attrs, changes: [], children, source };
 }
 
 function diffAttrs(base: ViewNode, head: ViewNode): AttrChange[] {
@@ -166,8 +244,11 @@ function pairChildren(base: ViewNode, head: ViewNode): Pair[] {
     return head.kind === 'callback' ? matchOperations(base.children, head.children) : pairRenamedVariants(matchByKey(base.children, head.children));
 }
 
-function diffOperations(base: ViewNode[], head: ViewNode[], servers: { base?: string[]; head?: string[] }): DiffNode[] {
-    return matchOperations(base, head).map((pair) => diffNode(...inheritServers(pair, servers)));
+function diffOperations(base: ViewNode[], head: ViewNode[], servers: { base?: string[]; head?: string[] }, ctx: DiffContext): DiffNode[] {
+    return matchOperations(base, head).map((pair) => {
+        const [b, h] = inheritServers(pair, servers);
+        return diffNode(b, h, {}, ctx);
+    });
 }
 
 /**

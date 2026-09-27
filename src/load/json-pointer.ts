@@ -22,6 +22,11 @@ export function partsToPointer(parts: string[]): string {
     return '#/' + parts.map((part) => part.replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
 }
 
+/** A pointer to a child: `#/paths` plus `/pets`, `get` gives `#/paths/~1pets/get`. */
+export function appendPointer(pointer: string, ...parts: (string | number)[]): string {
+    return partsToPointer([...pointerToParts(pointer), ...parts.map(String)]);
+}
+
 /** The node at the path `parts` in `doc`, or `undefined` when a step is missing. */
 export function getByParts(doc: unknown, parts: string[]): unknown {
     let node = doc;

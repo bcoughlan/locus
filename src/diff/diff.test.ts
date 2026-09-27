@@ -169,12 +169,13 @@ describe('diffDocument', () => {
                 `  /pets:\n    get:\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: {oneOf: [{$ref: "#/components/schemas/${name}"}, {$ref: "#/components/schemas/Dog"}]}`,
                 schemas(name),
             );
-        const body = find((await diff(doc('Cat'), doc('Feline'))).operations[0], 'responses', '200', 'application/json');
-        expect(body.children.map((child) => [child.key, child.status])).toEqual([
-            ['Feline', 'changed'],
-            ['Dog', 'unchanged'],
-        ]);
-        expect(body.children[0].changes).toEqual([expect.objectContaining({ name: 'title', before: 'Cat', after: 'Feline', severity: 'compatible' })]);
+        const result = await diff(doc('Cat'), doc('Feline'));
+        const body = find(result.operations[0], 'responses', '200', 'application/json');
+        expect(body.children.map((child) => child.key)).toEqual(['Feline', 'Dog']);
+        // The rename shows in the shared definition diff that the variant refers to.
+        const feline = result.schemas[body.children[0].ref!];
+        expect(feline.changes).toEqual([expect.objectContaining({ name: 'title', before: 'Cat', after: 'Feline', severity: 'compatible' })]);
+        expect(result.schemas[body.children[1].ref!].status).toBe('unchanged');
     });
 
     test('enum order does not count as a change', async () => {

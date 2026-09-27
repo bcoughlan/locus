@@ -6,7 +6,7 @@
  * markup, layout), so a console renderer and an HTML renderer print the same
  * report.
  */
-import type { AttrName, Attrs, Direction, NodeKind } from '../model/tree.ts';
+import type { AttrName, Attrs, Direction, NodeKind, Source } from '../model/tree.ts';
 
 export type Severity = 'breaking' | 'compatible';
 
@@ -39,11 +39,22 @@ export interface DiffNode {
      * Changed node: the most severe change of its own attributes.
      */
     verdict?: Verdict | { severity: Severity; reason?: undefined };
-    /** The facts to display: head values, or base values for a removed node. */
+    /**
+     * The facts to display: head values, or base values for a removed node.
+     * For a node with `ref`, only its own facts: the definition holds the rest.
+     */
     attrs: Attrs;
     /** Changes of the node's own attributes. Empty unless `status` is `changed`. */
     changes: AttrChange[];
     children: DiffNode[];
+    /**
+     * The id of a definition diff in {@link DocumentDiff.schemas}. The node
+     * shows that schema: its facts, changes, and children. Renderers look it
+     * up while they print, and stop at a definition they are already inside.
+     */
+    ref?: string;
+    /** Where the node is defined in each version, for a UI that jumps to the line. */
+    source?: { base?: Source; head?: Source };
     /** The most severe change in this subtree, the node included. Absent when nothing changed. */
     impact?: Severity;
 }
@@ -60,6 +71,8 @@ export interface DocumentDiff {
     info: DiffNode;
     operations: DiffNode[];
     webhooks: DiffNode[];
+    /** Definition diffs by id: the targets of `ref` in this document's nodes. Each schema pair is compared once. */
+    schemas: Record<string, DiffNode>;
     warnings: string[];
     impact?: Severity;
 }
