@@ -129,3 +129,24 @@ Reflection:
 - The first model optimized for the simplest diff (plain trees) and paid for it in memory and lost locations. Next time, I keep the input's own structure (references) in the model from the start, and expand only where a person reads the output.
 - Keeping all output snapshots before the refactor made it safe: the refactor had a precise target.
 - Decision: re-implemented the model's schema part, the diff's reference handling, and the renderer's expansion.
+
+Final review of M8 (ten findings, all fixed):
+
+- A change inside a reference cycle did not reach every node of the cycle. The diff now settles the impacts after the comparison.
+- A 3.0 `nullable` that moved from the use of a schema into the schema showed as a change at the use.
+- 3.1 honored a `nullable` keyword next to a `$ref`. 3.1 has no such keyword.
+- A description next to a `$ref` hid the definition description, but a change of that hidden description still showed.
+- `lineOf` missed number keys, for example an unquoted status code `200`.
+- Smaller items: array items of their own definition, hidden readOnly properties that built definitions, a duplicate helper, and a misplaced doc comment.
+
+What the Stripe run found after the fixes:
+
+- The cycle fix was correct, but it made the output larger. In Stripe, almost every schema reaches the changed `customer` schema. So "expand each schema with a change inside" expanded almost everything: 4 million lines.
+- The old output (762,000 lines) was smaller only because of the cycle bug.
+- Fix: a large endpoint now shows only the shortest reference paths to its changes, and counts the unchanged nodes. Result: 320,000 lines, median 515 per endpoint, 2.8 seconds.
+- `appendPointer` parsed the whole pointer again for each child. It now appends to the string. The Stripe self-diff went from 8.8 back to 3.8 seconds.
+
+Reflection:
+
+- A correctness fix can change the output size. I now run the Stripe diff after each change to the renderer or the impact logic, and I compare the line count, not only the time.
+- A large test spec is part of the test suite in spirit. A committed snapshot test now covers the large-endpoint rule.
