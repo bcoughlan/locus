@@ -1,0 +1,21 @@
+direction: down
+
+report: "DiffReport"
+docs: "docs.ts\ndocumentView()" {style.fill: "#e8f1fb"}
+model: "DocumentView\nEndpointView: header, digest,\nsections, tables, blocks"
+layout: "layout.ts\nSchemaLayout" {style.fill: "#e8f1fb"}
+lines: "Line[]\nschema lines\n(styled text, text.ts)"
+console: "console.ts\nrenderConsole()" {style.fill: "#e8f1fb"}
+html: "html.ts\nrenderHtml()" {style.fill: "#e8f1fb"}
+stdout: "stdout\nindented text, ANSI colors"
+page: "one HTML file\nAPI docs with changes marked"
+
+report -> docs: "each document"
+docs -> layout: "schemaBody(node)\nper parameter, header, media type"
+layout -> lines
+lines -> model: "RowView.schema"
+docs -> model
+model -> console
+model -> html
+console -> stdout
+html -> page: "--html <path>"

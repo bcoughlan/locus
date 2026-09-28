@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API changes: old.yml → new.yml</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff; --panel: #f6f8fa; --card: #ffffff; --border: #d8dee4; --text: #1f2328; --muted: #59636e;
+  --added: #1a7f37; --added-bg: #dafbe1; --breaking: #cf222e; --breaking-bg: #ffebe9;
+  --changed: #9a6700; --changed-bg: #fff8c5; --type: #0550ae; --accent: #0969da; --warning: #8250df; --current: #ddf4ff;
+  --code-bg: #eff2f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --panel: #151b23; --card: #0d1117; --border: #3d444d; --text: #e6edf3; --muted: #9198a1;
+    --added: #3fb950; --added-bg: #12261e; --breaking: #f85149; --breaking-bg: #2d1316;
+    --changed: #d29922; --changed-bg: #272115; --type: #79c0ff; --accent: #4493f8; --warning: #d2a8ff; --current: #152b45;
+    --code-bg: #212830;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+code, .lines, .path, .method, .type, .fact, .code { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+code { font-size: 0.88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+a { color: var(--accent); }
+.dim { color: var(--muted); }
+
+/* Page header */
+.top { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 20px; }
+.heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.top h1 { font-size: 16px; margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.result { font-weight: 600; }
+.result.breaking { color: var(--breaking); }
+.result.ok { color: var(--added); }
+.bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { border-radius: 999px; padding: 2px 10px; font-size: 13px; border: 1px solid currentColor; }
+.pill.zero { opacity: 0.45; }
+.p-breaking { color: var(--breaking); background: var(--breaking-bg); }
+.p-added { color: var(--added); background: var(--added-bg); }
+.p-removed { color: var(--breaking); background: var(--panel); }
+.p-changed { color: var(--changed); background: var(--changed-bg); }
+.toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.toggle button { font: inherit; font-size: 13px; padding: 3px 12px; border: 0; background: var(--panel); color: var(--muted); cursor: pointer; }
+.toggle button + button { border-left: 1px solid var(--border); }
+.toggle button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+/* Sidebar */
+.page { display: grid; grid-template-columns: minmax(230px, 310px) minmax(0, 1fr); }
+.sidebar { position: sticky; top: var(--top, 90px); align-self: start; max-height: calc(100vh - var(--top, 90px)); overflow-y: auto; border-right: 1px solid var(--border); padding: 12px 8px 24px; background: var(--panel); }
+.search { width: 100%; font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); margin-bottom: 6px; }
+.sidebar ul { list-style: none; margin: 0 0 6px; padding: 0; }
+.sidebar a { display: flex; align-items: baseline; gap: 6px; padding: 2px 6px; border-radius: 4px; color: inherit; text-decoration: none; }
+.sidebar a:hover { background: var(--border); }
+.sidebar a.current { background: var(--current); }
+.sidebar .marker { width: 1ch; flex: none; font-family: ui-monospace, monospace; }
+.sidebar .path { font-size: 12.5px; overflow-wrap: anywhere; }
+.sidebar li.removed .path { text-decoration: line-through; }
+.sidebar li.unchanged a { color: var(--muted); }
+.sidebar li.t-added .marker { color: var(--added); }
+.sidebar li.t-breaking .marker { color: var(--breaking); }
+.sidebar li.t-changed .marker { color: var(--changed); }
+.nav-file { display: block; font-weight: 600; font-size: 13px; margin: 10px 0 2px; font-family: ui-monospace, monospace; }
+.nav-heading { color: var(--muted); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 6px 2px; }
+.no-match { display: none !important; }
+
+/* Documents */
+main { padding: 20px 28px 40vh; min-width: 0; max-width: 1180px; }
+.doc { margin-bottom: 48px; }
+.doc-head { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; }
+.doc-head h2 { font-size: 26px; margin: 0; }
+.doc-head.t-breaking h2 { color: var(--breaking); }
+.version { font-size: 14px; font-weight: 500; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; vertical-align: middle; }
+.doc-file { margin: 4px 0 8px; color: var(--muted); }
+.warning { color: var(--warning); }
+.tag-heading { font-size: 20px; margin: 32px 0 12px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+/* Endpoints */
+.endpoint { background: var(--card); border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; margin: 0 0 20px; padding: 14px 18px; scroll-margin-top: calc(var(--top, 90px) + 12px); }
+.endpoint.t-added { border-left-color: var(--added); }
+.endpoint.t-breaking { border-left-color: var(--breaking); }
+.endpoint.t-changed { border-left-color: var(--changed); }
+.endpoint .endpoint { margin: 10px 0 0; }
+.ep-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ep-path { font-size: 15px; font-weight: 600; background: none; padding: 0; overflow-wrap: anywhere; }
+.endpoint.removed .ep-path { text-decoration: line-through; }
+.path-param { color: var(--type); }
+.ep-title { font-size: 18px; font-weight: 600; margin: 6px 0 2px; }
+.ep-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); font-size: 13px; margin-top: 4px; }
+.badge { font-size: 12.5px; font-weight: 600; margin-left: auto; }
+.badge.t-added { color: var(--added); } .badge.t-breaking { color: var(--breaking); } .badge.t-changed { color: var(--changed); }
+.method { font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; color: #fff; background: #6e7781; flex: none; }
+.m-get { background: #0969da; } .m-post { background: #1a7f37; } .m-put { background: #9a6700; }
+.m-patch { background: #8250df; } .m-delete { background: #cf222e; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 0 8px; color: var(--muted); }
+.chip-added { color: var(--added); border-color: var(--added); background: var(--added-bg); }
+.chip-removed { color: var(--breaking); border-color: var(--breaking); text-decoration: line-through; }
+.banner { margin: 10px 0; padding: 6px 10px; border-radius: 6px; font-weight: 600; }
+.banner.t-added { background: var(--added-bg); color: var(--added); }
+.banner.t-breaking { background: var(--breaking-bg); color: var(--breaking); }
+.banner.t-changed { background: var(--changed-bg); color: var(--changed); }
+.md p { margin: 6px 0; }
+.md ul, .md ol { margin: 6px 0; padding-left: 22px; }
+.md pre { background: var(--code-bg); padding: 8px 10px; border-radius: 6px; overflow-x: auto; }
+.md pre code { background: none; padding: 0; }
+.md-heading { font-weight: 600; }
+
+/* Digest */
+.digest { border: 1px solid var(--border); border-radius: 6px; margin: 12px 0; background: var(--panel); }
+.digest-title { font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.digest ul, ul.changes { list-style: none; margin: 0; padding: 4px 0; }
+.digest li, ul.changes li { display: flex; gap: 6px; padding: 1px 10px; font-size: 13.5px; }
+ul.changes { margin: 4px 0; }
+ul.changes li { padding: 1px 6px; border-radius: 4px; }
+.digest .marker, ul.changes .marker { width: 1.5ch; flex: none; font-family: ui-monospace, monospace; font-weight: 700; }
+.digest li.t-added .marker, ul.changes li.t-added .marker { color: var(--added); }
+.digest li.t-breaking .marker, ul.changes li.t-breaking .marker { color: var(--breaking); }
+.digest li.t-changed .marker, ul.changes li.t-changed .marker { color: var(--changed); }
+ul.changes li.t-breaking { background: var(--breaking-bg); }
+ul.changes li.t-changed { background: var(--changed-bg); }
+.where { font-family: ui-monospace, monospace; font-size: 12.5px; }
+.reason { color: var(--breaking); font-size: 12.5px; font-weight: 600; margin-left: 6px; }
+.text-diff { border-radius: 6px; padding: 4px 10px; margin: 6px 0; background: var(--panel); border: 1px dashed var(--border); font-size: 13.5px; }
+.text-diff > summary { cursor: pointer; color: var(--muted); }
+.text-diff.t-changed > summary { color: var(--changed); }
+.text-diff.t-breaking > summary { color: var(--breaking); }
+.text-diff .diff { white-space: pre-wrap; padding: 4px 0; }
+/* Inside an added or removed endpoint, every part is added or removed: the card says it once. */
+.endpoint.added .state-tag, .endpoint.removed .state-tag { display: none; }
+del { background: var(--breaking-bg); color: var(--breaking); text-decoration: line-through; }
+ins { background: var(--added-bg); color: var(--added); text-decoration: none; }
+
+/* Sections and parts */
+.ep-section { margin-top: 18px; }
+.ep-section h4 { font-size: 15px; margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+h5 { font-size: 13px; margin: 12px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.tag { font-size: 11.5px; font-weight: 600; border-radius: 4px; padding: 0 6px; margin-left: 6px; border: 1px solid var(--border); color: var(--muted); text-transform: none; letter-spacing: 0; vertical-align: middle; }
+.tag.t-added { color: var(--added); border-color: var(--added); background: var(--added-bg); }
+.tag.t-breaking { color: var(--breaking); border-color: var(--breaking); background: var(--breaking-bg); }
+.tag.t-changed { color: var(--changed); border-color: var(--changed); background: var(--changed-bg); }
+.required { color: var(--breaking); font-size: 11.5px; font-weight: 600; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+.type { color: var(--type); font-size: 13px; }
+.fact { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+.detail { font-size: 13px; color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+table.params { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; table-layout: fixed; }
+.params col.c-name { width: 26%; }
+.params col.c-type { width: 22%; }
+.params th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); padding: 4px 8px; }
+.params td { vertical-align: top; border-bottom: 1px solid var(--border); padding: 6px 8px; overflow-wrap: anywhere; }
+.params .p-name .state-tag { display: table; margin: 4px 0 0; white-space: normal; }
+.params .p-desc .md p:first-child { margin-top: 0; }
+.params tr.sub td { padding: 0 8px 8px; }
+tr.st-added td:first-child, .st-added > .media-head, .st-added > .resp-head { box-shadow: inset 3px 0 var(--added); }
+tr.st-removed td:first-child, .st-removed > .media-head, .st-removed > .resp-head { box-shadow: inset 3px 0 var(--breaking); }
+tr.st-changed.t-changed td:first-child { box-shadow: inset 3px 0 var(--changed); }
+tr.st-changed.t-breaking td:first-child { box-shadow: inset 3px 0 var(--breaking); }
+tr.st-removed code, .scheme.st-removed code { text-decoration: line-through; }
+tr.t-added td { background: color-mix(in srgb, var(--added-bg) 60%, transparent); }
+tr.st-removed td { background: color-mix(in srgb, var(--breaking-bg) 60%, transparent); }
+.block { margin: 10px 0; }
+.response { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+.response.st-added { border-color: var(--added); }
+.response.st-removed { border-color: var(--breaking); }
+.resp-head, .media-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding-left: 6px; }
+.code { font-weight: 700; font-size: 13px; padding: 1px 7px; border-radius: 4px; color: #fff; background: #6e7781; }
+.c-2xx { background: #1a7f37; } .c-3xx { background: #0969da; } .c-4xx { background: #9a6700; } .c-5xx { background: #cf222e; }
+.media { margin: 8px 0 4px; }
+.media-head code { font-weight: 600; }
+.auth { list-style: none; padding: 0; margin: 0; }
+.auth > li.or { color: var(--muted); font-size: 12px; text-transform: uppercase; padding: 2px 0; }
+.and { color: var(--muted); font-size: 12px; }
+.scheme { padding: 4px 0; }
+.flows { margin: 2px 0; padding-left: 20px; font-size: 13px; }
+.callback { margin: 10px 0; }
+
+/* Schema lines */
+.schema { margin: 4px 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); overflow-x: auto; }
+details.schema > summary { cursor: pointer; padding: 4px 10px; font-size: 13px; color: var(--muted); }
+.lines { font-size: 12.5px; padding: 6px 0; min-width: max-content; }
+.line { display: flex; }
+.line .marker { width: 3ch; flex: none; text-align: center; user-select: none; }
+.line .text { padding-left: calc(var(--depth) * 2ch); white-space: pre-wrap; padding-right: 10px; }
+.line.t-added { background: var(--added-bg); }
+.line.t-breaking { background: var(--breaking-bg); }
+.line.t-changed { background: var(--changed-bg); }
+.line.t-added > .marker { color: var(--added); }
+.line.t-breaking > .marker { color: var(--breaking); }
+.line.t-changed > .marker { color: var(--changed); }
+.s-bold { font-weight: 700; }
+.s-dim { color: var(--muted); }
+.s-type { color: var(--type); }
+.s-warning { color: var(--warning); }
+.s-added { color: var(--added); }
+.s-breaking { color: var(--breaking); }
+.s-changed { color: var(--changed); }
+.s-added .s-dim, .s-breaking .s-dim, .s-changed .s-dim, .s-added .s-type, .s-breaking .s-type, .s-changed .s-type { color: inherit; }
+
+/* Changed only: hide the unchanged endpoints, and the headings and documents that hold nothing else. */
+.empty { color: var(--muted); }
+body:not(.show-all) main > .doc.unchanged,
+body:not(.show-all) .doc > .unchanged,
+body:not(.show-all) .sidebar .unchanged { display: none; }
+body.show-all .empty { display: none; }
+
+@media (max-width: 760px) {
+  .page { display: block; }
+  .top { position: static; }
+  .sidebar { position: static; max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 16px; }
+  .endpoint { padding: 12px; scroll-margin-top: 12px; }
+  /* Table rows stack: name and type on one line, the description below. */
+  table.params { min-width: 0; table-layout: auto; }
+  .params thead { display: none; }
+  .params tr, .params td { display: block; }
+  .params tr { border-bottom: 1px solid var(--border); padding: 4px 0; }
+  .params td { border: 0; padding: 2px 8px; }
+  .params td.p-name, .params td.p-type { display: inline-block; }
+}
+</style>
+</head>
+<body class="">
+<header class="top">
+  <div class="heading">
+    <h1>Comparing <code>old.yml</code> → <code>new.yml</code></h1>
+    <div class="result breaking">Breaking changes found</div>
+  </div>
+  <div class="bar">
+    <div class="pills">
+      <span class="pill p-breaking" title="Changed endpoints with at least one breaking change"><b>2</b> breaking</span>
+      <span class="pill p-added" title="New endpoints"><b>1</b> added</span>
+      <span class="pill p-removed" title="Deleted endpoints"><b>1</b> removed</span>
+      <span class="pill p-changed zero" title="Changed endpoints with only compatible changes"><b>0</b> changed</span>
+    </div>
+    <div class="toggle" role="group" aria-label="Endpoints to show">
+      <button type="button" data-show="changed">Changed (4)</button><button type="button" data-show="all">All (5)</button>
+    </div>
+  </div>
+</header>
+<div class="page">
+<nav class="sidebar">
+<input class="search" type="search" placeholder="Filter endpoints" aria-label="Filter endpoints">
+<div class="nav-doc"><a class="nav-file" href="#doc-1">new.yml</a>
+<div class="nav-group">
+<div class="nav-heading">pets</div>
+<ul><li class="t-breaking breaking" data-search="get /pets listpets list pets"><a href="#endpoint-1" title="List pets"><span class="marker">~</span><span class="method m-get">GET</span><span class="path">/pets</span></a></li><li class="t-breaking breaking" data-search="get /pets/{id} getpet get a pet"><a href="#endpoint-2" title="Get a pet"><span class="marker">~</span><span class="method m-get">GET</span><span class="path">/pets/{id}</span></a></li><li class="t-none unchanged" data-search="delete /pets/{id} deletepet delete a pet"><a href="#endpoint-3" title="Delete a pet"><span class="marker"></span><span class="method m-delete">DELETE</span><span class="path">/pets/{id}</span></a></li></ul></div>
+<div class="nav-group">
+<div class="nav-heading">stores</div>
+<ul><li class="t-breaking removed" data-search="get /stores liststores list stores"><a href="#endpoint-4" title="List stores"><span class="marker">-</span><span class="method m-get">GET</span><span class="path">/stores</span></a></li></ul></div>
+<div class="nav-group">
+<div class="nav-heading">orders</div>
+<ul><li class="t-added added" data-search="post /orders createorder place an order"><a href="#endpoint-5" title="Place an order"><span class="marker">+</span><span class="method m-post">POST</span><span class="path">/orders</span></a></li></ul></div>
+</div>
+</nav>
+<main>
+<section class="doc" id="doc-1">
+<header class="doc-head t-breaking">
+<h2>Pet Store <span class="version">1.1.0</span></h2>
+<div class="doc-file"><code>new.yml</code></div>
+<div class="md"><p>The pet store API.</p></div>
+<ul class="changes"><li class="t-changed"><span class="marker">~</span><span>version: 1.0.0 → 1.1.0</span></li></ul>
+</header>
+<h3 class="tag-heading">pets</h3>
+<article class="endpoint breaking t-breaking" id="endpoint-1">
+<header class="ep-head">
+<div class="ep-line"><span class="method m-get">GET</span><code class="ep-path">/pets</code>
+<span class="badge t-breaking">breaking</span>
+</div>
+<div class="ep-title">List pets</div>
+<div class="chips"><span class="chip">pets</span></div>
+<div class="ep-meta"><span>Operation ID <code>listPets</code></span></div>
+</header>
+<div class="digest"><div class="digest-title">What changed <span class="dim">6 changes, 4 breaking</span></div><ul><li class="t-changed"><span class="marker">~</span><span><span class="what">description changed</span></span></li><li class="t-breaking"><span class="marker">~</span><span><span class="where">query parameter limit</span> <span class="what">maximum: 500 → 100</span> <span class="reason">breaking: maximum decreased (client sends)</span></span></li><li class="t-breaking"><span class="marker">~</span><span><span class="where">query parameter status</span> <span class="what">enum: + adopted, - pending</span> <span class="reason">breaking: enum values changed (added adopted, removed pending)</span></span></li><li class="t-breaking"><span class="marker">+</span><span><span class="where">header parameter X-Request-Id</span> <span class="what">added</span> <span class="reason">breaking: required header parameter added (client sends)</span></span></li><li class="t-breaking"><span class="marker">-</span><span><span class="where">response 200 › application/json › [].tag</span> <span class="what">removed</span> <span class="reason">breaking: property removed</span></span></li><li class="t-added"><span class="marker">+</span><span><span class="where">response 200 › application/json › [].age</span> <span class="what">added</span></span></li></ul></div>
+<div class="md"><p>Returns the pets in the store, oldest first. See <a href="https://example.com/guide" rel="noopener noreferrer">the guide</a> and <code>GET /pets/{id}</code>.</p><ul><li>Sorted by <strong>age</strong></li><li>Links like this) stay text. &lt;script&gt;alert(1)&lt;/script&gt;</li></ul></div><details class="text-diff t-changed"><summary>description changed</summary><div class="diff">Returns the pets in the store, <del>newest</del><ins>oldest</ins> first.<ins> See [the guide](https://example.com/guide) and `GET /pets/{id}`.
+
+- Sorted by **age**
+- Links like [this](javascript:alert(1)) stay text. &lt;script&gt;alert(1)&lt;/script&gt;</ins></div></details>
+<section class="ep-section st-unchanged t-none">
+<h4>Authorization</h4>
+<ul class="auth"><li class="st-unchanged t-none"><div class="scheme st-unchanged t-none"><div><code>api_key</code> <span class="type">apiKey in header &quot;X-API-Key&quot;</span></div></div></li></ul>
+</section>
+<section class="ep-section st-unchanged t-none">
+<h4>Request</h4>
+<h5>Query parameters</h5><div class="table-wrap"><table class="params"><colgroup><col class="c-name"><col class="c-type"><col></colgroup><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr class="row st-changed t-breaking"><td class="p-name"><code>limit</code> <span class="tag state-tag t-breaking">changed</span></td><td class="p-type"><span class="type">integer</span> <span class="fact">&gt;= 1</span> <span class="fact">&lt;= 100</span></td><td class="p-desc"><div class="md"><p>How many pets to return.</p></div><ul class="changes"><li class="t-breaking"><span class="marker">~</span><span>maximum: 500 → 100 <span class="reason">breaking: maximum decreased (client sends)</span></span></li></ul></td></tr><tr class="row st-changed t-breaking"><td class="p-name"><code>status</code> <span class="tag state-tag t-breaking">changed</span></td><td class="p-type"><span class="type">string</span></td><td class="p-desc"><div class="detail">Allowed values: available, sold, adopted</div><ul class="changes"><li class="t-breaking"><span class="marker">~</span><span>enum: + adopted, - pending <span class="reason">breaking: enum values changed (added adopted, removed pending)</span></span></li></ul></td></tr></tbody></table></div>
+<h5>Header parameters <span class="tag state-tag t-breaking">added</span></h5><div class="table-wrap"><table class="params"><colgroup><col class="c-name"><col class="c-type"><col></colgroup><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr class="row st-added t-breaking"><td class="p-name"><code>X-Request-Id</code><span class="required">required</span> <span class="tag state-tag t-breaking" title="required header parameter added (client sends)">added, breaking: required header parameter added (client sends)</span></td><td class="p-type"><span class="type">string&lt;uuid&gt;</span></td><td class="p-desc"></td></tr></tbody></table></div>
+</section>
+<section class="ep-section st-unchanged t-none">
+<h4>Responses</h4>
+<div class="block response st-unchanged t-none">
+<div class="resp-head"><span class="code c-2xx">200</span><span class="resp-title">A page of pets.</span></div>
+
+
+<h5>Headers</h5><div class="table-wrap"><table class="params"><colgroup><col class="c-name"><col class="c-type"><col></colgroup><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr class="row st-unchanged t-none"><td class="p-name"><code>X-Next-Page</code></td><td class="p-type"><span class="type">string</span></td><td class="p-desc"><div class="md"><p>The cursor of the next page.</p></div></td></tr></tbody></table></div>
+<div class="media st-unchanged t-none">
+<div class="media-head"><code>application/json</code> <span class="type">array[Pet]</span></div>
+
+<div class="schema"><div class="lines"><div class="line t-none" style="--depth:0"><span class="marker"> </span><span class="text">id  <span class="s-type">string</span>  required</span></div><div class="line t-none" style="--depth:0"><span class="marker"> </span><span class="text">name  <span class="s-type">string</span>  required</span></div><div class="line t-none" style="--depth:1"><span class="marker"> </span><span class="text"><span class="s-dim">The name, for example &lt;b&gt;Rex&lt;/b&gt; &amp; co.</span></span></div><div class="line t-breaking" style="--depth:0"><span class="marker">-</span><span class="text"><span class="s-breaking">tag  <span class="s-type">string</span>  [breaking: property removed]</span></span></div><div class="line t-added" style="--depth:0"><span class="marker">+</span><span class="text"><span class="s-added">age  <span class="s-type">integer</span>  <span class="s-dim">&gt;= 0</span></span></span></div></div></div>
+</div>
+</div>
+</section>
+</article>
+<article class="endpoint breaking t-breaking" id="endpoint-2">
+<header class="ep-head">
+<div class="ep-line"><span class="method m-get">GET</span><code class="ep-path">/pets/<span class="path-param">{id}</span></code>
+<span class="badge t-breaking">breaking</span>
+</div>
+<div class="ep-title">Get a pet</div>
+<div class="chips"><span class="chip">pets</span></div>
+<div class="ep-meta"><span>Operation ID <code>getPet</code></span></div>
+</header>
+<div class="digest"><div class="digest-title">What changed <span class="dim">3 changes, 2 breaking</span></div><ul><li class="t-breaking"><span class="marker">~</span><span><span class="where">path parameter id</span> <span class="what">type: string → integer</span> <span class="reason">breaking: type changed</span></span></li><li class="t-breaking"><span class="marker">-</span><span><span class="where">response 200 › application/json › tag</span> <span class="what">removed</span> <span class="reason">breaking: property removed</span></span></li><li class="t-added"><span class="marker">+</span><span><span class="where">response 200 › application/json › age</span> <span class="what">added</span></span></li></ul></div>
+<section class="ep-section st-unchanged t-none">
+<h4>Authorization</h4>
+<ul class="auth"><li class="st-unchanged t-none"><div class="scheme st-unchanged t-none"><div><code>api_key</code> <span class="type">apiKey in header &quot;X-API-Key&quot;</span></div></div></li></ul>
+</section>
+<section class="ep-section st-unchanged t-none">
+<h4>Request</h4>
+<h5>Path parameters</h5><div class="table-wrap"><table class="params"><colgroup><col class="c-name"><col class="c-type"><col></colgroup><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr class="row st-changed t-breaking"><td class="p-name"><code>id</code><span class="required">required</span> <span class="tag state-tag t-breaking">changed</span></td><td class="p-type"><span class="type">integer&lt;int64&gt;</span></td><td class="p-desc"><ul class="changes"><li class="t-breaking"><span class="marker">~</span><span>type: string → integer <span class="reason">breaking: type changed</span></span></li></ul></td></tr></tbody></table></div>
+</section>
+<section class="ep-section st-unchanged t-none">
+<h4>Responses</h4>
+<div class="block response st-unchanged t-none">
+<div class="resp-head"><span class="code c-2xx">200</span><span class="resp-title">The pet.</span></div>
+
+
+
+<div class="media st-unchanged t-none">
+<div class="media-head"><code>application/json</code> <span class="type">Pet</span></div>
+
+<div class="schema"><div class="lines"><div class="line t-none" style="--depth:0"><span class="marker"> </span><span class="text">id  <span class="s-type">string</span>  required</span></div><div class="line t-none" style="--depth:0"><span class="marker"> </span><span class="text">name  <span class="s-type">string</span>  required</span></div><div class="line t-none" style="--depth:1"><span class="marker"> </span><span class="text"><span class="s-dim">The name, for example &lt;b&gt;Rex&lt;/b&gt; &amp; co.</span></span></div><div class="line t-breaking" style="--depth:0"><span class="marker">-</span><span class="text"><span class="s-breaking">tag  <span class="s-type">string</span>  [breaking: property removed]</span></span></div><div class="line t-added" style="--depth:0"><span class="marker">+</span><span class="text"><span class="s-added">age  <span class="s-type">integer</span>  <span class="s-dim">&gt;= 0</span></span></span></div></div></div>
+</div>
+</div>
+<div class="block response st-unchanged t-none">
+<div class="resp-head"><span class="code c-4xx">404</span><span class="resp-title">No pet has this ID.</span></div>
+
+
+
+</div>
+</section>
+</article>
+<article class="endpoint unchanged t-none" id="endpoint-3">
+<header class="ep-head">
+<div class="ep-line"><span class="method m-delete">DELETE</span><code class="ep-path">/pets/<span class="path-param">{id}</span></code>
+</div>
+<div class="ep-title">Delete a pet</div>
+<div class="chips"><span class="chip">pets</span></div>
+<div class="ep-meta"><span>Operation ID <code>deletePet</code></span></div>
+</header>
+<section class="ep-section st-unchanged t-none">
+<h4>Authorization</h4>
+<ul class="auth"><li class="st-unchanged t-none"><div class="scheme st-unchanged t-none"><div><code>api_key</code> <span class="type">apiKey in header &quot;X-API-Key&quot;</span></div></div></li></ul>
+</section>
+<section class="ep-section st-unchanged t-none">
+<h4>Request</h4>
+<h5>Path parameters</h5><div class="table-wrap"><table class="params"><colgroup><col class="c-name"><col class="c-type"><col></colgroup><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr class="row st-unchanged t-none"><td class="p-name"><code>id</code><span class="required">required</span></td><td class="p-type"><span class="type">string</span></td><td class="p-desc"></td></tr></tbody></table></div>
+</section>
+<section class="ep-section st-unchanged t-none">
+<h4>Responses</h4>
+<div class="block response st-unchanged t-none">
+<div class="resp-head"><span class="code c-2xx">204</span><span class="resp-title">The pet is deleted.</span></div>
+
+
+
+</div>
+</section>
+</article>
+<h3 class="tag-heading">stores</h3>
+<article class="endpoint removed t-breaking" id="endpoint-4">
+<header class="ep-head">
+<div class="ep-line"><span class="method m-get">GET</span><code class="ep-path">/stores</code>
+<span class="badge t-breaking">breaking: endpoint removed</span>
+</div>
+<div class="ep-title">List stores</div>
+<div class="chips"><span class="chip">stores</span></div>
+<div class="ep-meta"><span>Operation ID <code>listStores</code></span></div>
+</header>
+<div class="banner t-breaking">This endpoint was removed. <span class="reason">breaking: endpoint removed</span></div>
+<section class="ep-section st-removed t-breaking">
+<h4>Authorization <span class="tag state-tag t-breaking">removed</span></h4>
+<ul class="auth"><li class="st-removed t-breaking"><div class="scheme st-removed t-breaking"><div><code>api_key</code> <span class="type">apiKey in header &quot;X-API-Key&quot;</span> <span class="tag state-tag t-breaking">removed</span></div></div></li></ul>
+</section>
+<section class="ep-section st-removed t-breaking">
+<h4>Responses <span class="tag state-tag t-breaking">removed</span></h4>
+<div class="block response st-removed t-breaking">
+<div class="resp-head"><span class="code c-2xx">200</span><span class="resp-title">The stores.</span> <span class="tag state-tag t-breaking">removed</span></div>
+
+
+
+</div>
+</section>
+</article>
+<h3 class="tag-heading">orders</h3>
+<article class="endpoint added t-added" id="endpoint-5">
+<header class="ep-head">
+<div class="ep-line"><span class="method m-post">POST</span><code class="ep-path">/orders</code>
+<span class="badge t-added">added</span>
+</div>
+<div class="ep-title">Place an order</div>
+<div class="chips"><span class="chip">orders</span></div>
+<div class="ep-meta"><span>Operation ID <code>createOrder</code></span></div>
+</header>
+<div class="banner t-added">New endpoint.</div>
+<section class="ep-section st-added t-added">
+<h4>Authorization <span class="tag state-tag t-added">added</span></h4>
+<ul class="auth"><li class="st-added t-added"><div class="scheme st-added t-added"><div><code>api_key</code> <span class="type">apiKey in header &quot;X-API-Key&quot;</span> <span class="tag state-tag t-added">added</span></div></div></li></ul>
+</section>
+<section class="ep-section st-added t-added">
+<h4>Request <span class="tag state-tag t-added">added</span></h4>
+<div class="block st-added t-added">
+<h5>Body <span class="required">required</span> <span class="tag state-tag t-added">added</span></h5>
+
+
+<div class="media st-added t-added">
+<div class="media-head"><code>application/json</code> <span class="type">object</span> <span class="tag state-tag t-added">added</span></div>
+
+<div class="schema"><div class="lines"><div class="line t-added" style="--depth:0"><span class="marker">+</span><span class="text"><span class="s-added">petId  <span class="s-type">string</span>  required</span></span></div><div class="line t-added" style="--depth:0"><span class="marker">+</span><span class="text"><span class="s-added">note  <span class="s-type">string</span>  <span class="s-dim">&lt;= 200 characters</span></span></span></div></div></div>
+</div>
+</div>
+</section>
+<section class="ep-section st-added t-added">
+<h4>Responses <span class="tag state-tag t-added">added</span></h4>
+<div class="block response st-added t-added">
+<div class="resp-head"><span class="code c-2xx">201</span><span class="resp-title">The order is placed.</span> <span class="tag state-tag t-added">added</span></div>
+
+
+
+</div>
+</section>
+</article>
+</section>
+</main>
+</div>
+<script>
+(() => {
+  const body = document.body;
+  const buttons = document.querySelectorAll('[data-show]');
+  const select = (mode) => {
+    body.classList.toggle('show-all', mode === 'all');
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.show === mode)));
+  };
+  buttons.forEach((b) => b.addEventListener('click', () => select(b.dataset.show)));
+  select(body.classList.contains('show-all') ? 'all' : 'changed');
+
+  // The sticky header height, so the sidebar and anchors sit below it.
+  const top = document.querySelector('.top');
+  const measure = () => document.documentElement.style.setProperty('--top', top.offsetHeight + 'px');
+  new ResizeObserver(measure).observe(top);
+
+  // The filter hides sidebar entries that do not match, and groups left empty.
+  const search = document.querySelector('.search');
+  search.addEventListener('input', () => {
+    const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+    document.querySelectorAll('.sidebar li[data-search]').forEach((li) => {
+      li.classList.toggle('no-match', !words.every((word) => li.dataset.search.includes(word)));
+    });
+    document.querySelectorAll('.nav-group').forEach((group) => {
+      group.classList.toggle('no-match', group.querySelector('li:not(.no-match)') === null);
+    });
+  });
+
+  // Mark the sidebar entry of the endpoint at the top of the view.
+  const links = new Map();
+  document.querySelectorAll('.sidebar a[href^="#endpoint-"]').forEach((a) => links.set(a.getAttribute('href').slice(1), a));
+  let current;
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      current?.classList.remove('current');
+      current = links.get(entry.target.id);
+      current?.classList.add('current');
+    }
+  }, { rootMargin: '-120px 0px -70% 0px' });
+  document.querySelectorAll('.endpoint[id]').forEach((el) => observer.observe(el));
+})();
+</script>
+</body>
+</html>

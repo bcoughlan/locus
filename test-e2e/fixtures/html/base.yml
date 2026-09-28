@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: Pet Store
+  version: 1.0.0
+  description: The pet store API.
+security:
+  - api_key: []
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      tags: [pets]
+      summary: List pets
+      description: Returns the pets in the store, newest first.
+      parameters:
+        - name: limit
+          in: query
+          description: How many pets to return.
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: status
+          in: query
+          schema: {type: string, enum: [available, pending, sold]}
+      responses:
+        '200':
+          description: A page of pets.
+          headers:
+            X-Next-Page:
+              description: The cursor of the next page.
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Pet'}}
+  /pets/{id}:
+    get:
+      operationId: getPet
+      tags: [pets]
+      summary: Get a pet
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: The pet.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        '404':
+          description: No pet has this ID.
+    delete:
+      operationId: deletePet
+      tags: [pets]
+      summary: Delete a pet
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '204':
+          description: The pet is deleted.
+  /stores:
+    get:
+      operationId: listStores
+      tags: [stores]
+      summary: List stores
+      responses:
+        '200':
+          description: The stores.
+components:
+  securitySchemes:
+    api_key: {type: apiKey, in: header, name: X-API-Key}
+  schemas:
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string, description: 'The name, for example <b>Rex</b> & co.'}
+        tag: {type: string}

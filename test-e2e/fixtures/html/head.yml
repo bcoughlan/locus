@@ -1,0 +1,93 @@
+openapi: 3.1.0
+info:
+  title: Pet Store
+  version: 1.1.0
+  description: The pet store API.
+security:
+  - api_key: []
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      tags: [pets]
+      summary: List pets
+      description: |
+        Returns the pets in the store, oldest first. See [the guide](https://example.com/guide) and `GET /pets/{id}`.
+
+        - Sorted by **age**
+        - Links like [this](javascript:alert(1)) stay text. <script>alert(1)</script>
+      parameters:
+        - name: limit
+          in: query
+          description: How many pets to return.
+          schema: {type: integer, minimum: 1, maximum: 100}
+        - name: status
+          in: query
+          schema: {type: string, enum: [available, sold, adopted]}
+        - name: X-Request-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: A page of pets.
+          headers:
+            X-Next-Page:
+              description: The cursor of the next page.
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Pet'}}
+  /pets/{id}:
+    get:
+      operationId: getPet
+      tags: [pets]
+      summary: Get a pet
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: The pet.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        '404':
+          description: No pet has this ID.
+    delete:
+      operationId: deletePet
+      tags: [pets]
+      summary: Delete a pet
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '204':
+          description: The pet is deleted.
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Place an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [petId]
+              properties:
+                petId: {type: string}
+                note: {type: string, maxLength: 200}
+      responses:
+        '201':
+          description: The order is placed.
+components:
+  securitySchemes:
+    api_key: {type: apiKey, in: header, name: X-API-Key}
+  schemas:
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string, description: 'The name, for example <b>Rex</b> & co.'}
+        age: {type: integer, minimum: 0}
