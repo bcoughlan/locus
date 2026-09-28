@@ -30,7 +30,7 @@ The diff is a pipeline. Each stage returns plain data.
 - Model: each endpoint becomes a view tree: parameters, bodies, responses, headers, schemas, security, callbacks, webhooks. `allOf` merges.
 - References stay references. Each schema is built once per direction, in a table. A cycle points back to its definition.
 - Diff: endpoints match by `operationId`, then by method and path. Nodes match by kind and key. Each pair of schema definitions is compared once. A rules table classifies each change by direction (client sends or client receives).
-- Render: the diff report is a generic tree of plain objects. The console renderer expands references while it prints. An HTML renderer can use the same report.
+- Render: the diff report is a generic tree of plain objects. A shared docs model describes each endpoint as docs, with schemas as lines of styled text. The console renderer and the HTML renderer (`--html`) paint the same model.
 
 The diff runs on the same tree that the renderer prints. So every change the diff finds is visible, and every visible fact is compared.
 

@@ -10,6 +10,8 @@ Comparing base → head
 
 ~   POST newPet  newPetEvent  [changed]
       A pet was added.
+      Changes
+~       request body: description changed
       Request
 ~       Body  required
 ~         description: A pet event. → The pet that was added, with its kind.

@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [changed]
       List pets
+      Changes
++       header parameter X-Request-Id: added
 +     Request
 +       Header parameters
 +         X-Request-Id  string

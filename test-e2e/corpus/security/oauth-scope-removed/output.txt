@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pet Store 1.2.0
 
 ~   GET /pets  listPets  [changed]
+      Changes
+~       security › petAuth: scopes: - pets:write
       Security
 ~       petAuth  oauth2  scopes: pets:read
 ~         scopes: - pets:write

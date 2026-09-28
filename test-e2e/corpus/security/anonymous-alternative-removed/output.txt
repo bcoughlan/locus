@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  News API 2.0.0
 
 ~   GET /articles  listArticles  [breaking]
+      Changes
+-       security › none (anonymous access): removed  [breaking: anonymous access removed]
       Security
 -       none (anonymous access)  [breaking: anonymous access removed]
         bearerAuth  http bearer (JWT)

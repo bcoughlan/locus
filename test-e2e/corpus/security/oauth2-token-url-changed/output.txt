@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Billing API 5.0.0
 
 ~   GET /invoices  listInvoices  [breaking]
+      Changes
+~       security › machineAuth › clientCredentials flow: tokenUrl: https://auth.example.com/oauth/token → https://login.example.com/oauth2/v2/token  [breaking: OAuth tokenUrl changed]
       Security
         machineAuth  oauth2  scopes: invoices:read
 ~         clientCredentials  token: https://login.example.com/oauth2/v2/token

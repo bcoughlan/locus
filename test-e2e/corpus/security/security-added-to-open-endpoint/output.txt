@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List all pets.
+      Changes
++       security: added
 +     Security
 +       apiKey  apiKey in header "X-API-Key"  [breaking: security added to an endpoint that had none]
       Responses

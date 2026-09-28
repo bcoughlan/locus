@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [changed]
       List pets
+      Changes
++       cookie parameter currency: added
 +     Request
 +       Cookie parameters
 +         currency  string

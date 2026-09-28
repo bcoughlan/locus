@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [changed]
       List pets
+      Changes
+~       query parameter species: required → optional
       Request
         Query parameters
 ~         species  string

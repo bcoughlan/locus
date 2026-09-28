@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
+~       request body › application/json › tags: uniqueItems: false → true  [breaking: items must be unique (client sends)]
       Request
         Body  required
           application/json  NewPet

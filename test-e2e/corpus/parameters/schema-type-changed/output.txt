@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter page: type: integer → string  [breaking: type changed]
       Request
         Query parameters
 ~         page  string

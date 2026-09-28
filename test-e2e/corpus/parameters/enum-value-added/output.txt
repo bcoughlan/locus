@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [changed]
       List pets
+      Changes
+~       query parameter status: enum: + sold
       Request
         Query parameters
 ~         status  string

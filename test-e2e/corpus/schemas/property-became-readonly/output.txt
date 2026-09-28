@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
+-       request body › application/json › tag: removed  [breaking: property became read-only, so it is gone from requests]
       Request
         Body  required
           application/json  Pet
@@ -16,6 +18,8 @@ Comparing base → head
         201  The pet was created.
 
 ~   GET /pets/{petId}  getPet  [changed]
+      Changes
+~       response 200 › application/json › tag: readOnly: false → true
       Request
         Path parameters
           petId  string  required

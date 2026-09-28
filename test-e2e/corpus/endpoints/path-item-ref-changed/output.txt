@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets/{petId}  getPet  [breaking]
       Get one pet
+      Changes
+-       response 200 › application/json › tag: removed  [breaking: property removed]
       Request
         Path parameters
           petId  integer<int64>  required

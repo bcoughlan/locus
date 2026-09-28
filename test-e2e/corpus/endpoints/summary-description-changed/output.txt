@@ -9,6 +9,9 @@ Comparing base → head
 ~   GET /pets  listPets  [changed]
 ~     summary: List all pets → List the pets in the store
 ~     description: Returns all pets in the store. → Returns the pets in the store, sorted by name.
+      Changes
+~       summary changed
+~       description changed
       Responses
         200  A list of pets.
           application/json  array[Pet]

@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets/feed  streamPets  [changed]
       Stream all pets as JSON Lines
+      Changes
++       response 200 › application/jsonl › each item.updatedAt: added
       Responses
         200  One JSON object per line, one line per pet.
           application/jsonl  stream of object

@@ -7,6 +7,10 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   GET /pets/{petId}/photos  listPetPhotos  [breaking]
+      Changes
+~       response 200 › application/json › []: type: string → object  [breaking: type changed]
++       response 200 › application/json › [].url: added
++       response 200 › application/json › [].caption: added
       Request
         Path parameters
           petId  string  required

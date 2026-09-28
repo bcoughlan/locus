@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Accounts API 1.0.0
 
 ~   GET /me  getCurrentUser  [breaking]
+      Changes
+~       security › userAuth: scheme: basic → bearer  [breaking: security scheme changed (scheme)]
       Security
 ~       userAuth  http bearer
 ~         scheme: basic → bearer  [breaking: security scheme changed (scheme)]

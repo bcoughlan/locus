@@ -64,7 +64,8 @@ export async function main(argv: string[], io: Io = processIo()): Promise<number
         )
         .option('--all', 'also print unchanged endpoints', false)
         .option('--no-color', 'print without colors')
-        .action(async (specs: string[], options: { base?: string; source?: string[]; all: boolean; color: boolean }) => {
+        .option('--html <path>', 'also write the report as an HTML page to this file')
+        .action(async (specs: string[], options: { base?: string; source?: string[]; all: boolean; color: boolean; html?: string }) => {
             exitCode = await runDiff(specs, { ...options, source: options.source ?? [], color: options.color ? io.color : 0 }, io);
         });
 

@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets/events  watchPets  [breaking]
       Watch pet changes as server-sent events
+      Changes
+-       response 200 › text/event-stream › each item.id: removed  [breaking: property removed]
       Responses
         200  A stream of pet change events.
           text/event-stream  stream of object

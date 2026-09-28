@@ -9,6 +9,8 @@ Comparing base → head
 ~   PATCH /pets/{petId}  updatePet  [breaking]
       Update a pet
 ~     method: PUT → PATCH  [breaking: method changed]
+      Changes
+~       method: PUT → PATCH  [breaking: method changed]
       Request
         Path parameters
           petId  integer<int64>  required

@@ -11,6 +11,8 @@ Comparing base → head
 ~     description changed:
 -       Read or delete one pet by its ID.
 +       Read or delete one pet. The ID is the number that POST /pets returns.
+      Changes
+~       description changed
       Request
         Path parameters
           petId  integer<int64>  required
@@ -25,6 +27,8 @@ Comparing base → head
 ~     description changed:
 -       Read or delete one pet by its ID.
 +       Read or delete one pet. The ID is the number that POST /pets returns.
+      Changes
+~       description changed
       Request
         Path parameters
           petId  integer<int64>  required

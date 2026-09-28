@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Maps API 3.0.0
 
 ~   GET /geocode  geocode  [breaking]
+      Changes
+~       security › apiKey: in: header → query  [breaking: security scheme changed (in)]
       Security
 ~       apiKey  apiKey in query "api_key"
 ~         in: header → query  [breaking: security scheme changed (in)]

@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets/{petId}/adopt  adoptPet  [breaking]
+      Changes
+-       request body: removed  [breaking: request body removed]
       Request
         Path parameters
           petId  string  required

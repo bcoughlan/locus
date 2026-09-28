@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Weather API 1.5.0
 
 ~   GET /forecasts/{city}  getForecast  [breaking]
+      Changes
+~       security › apiKey: name: X-API-Key → X-Api-Token  [breaking: security scheme changed (parameterName)]
       Security
 ~       apiKey  apiKey in header "X-Api-Token"
 ~         name: X-API-Key → X-Api-Token  [breaking: security scheme changed (parameterName)]

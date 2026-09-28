@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
++       header parameter X-Tenant-Id: added  [breaking: required header parameter added (client sends)]
 +     Request
 +       Header parameters
 +         X-Tenant-Id  string<uuid>  required  [breaking: required header parameter added (client sends)]

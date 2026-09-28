@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Reporting API 1.0.0
 
 ~   GET /reports  listReports  [changed]
+      Changes
++       security › bearerAuth: added
       Security
         apiKey  apiKey in header "X-API-Key"
 +       bearerAuth  http bearer

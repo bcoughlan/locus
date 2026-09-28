@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   POST /files  uploadFile  [breaking]
 ~     servers: + https://uploads.example.com, - https://api.example.com  [breaking: server removed: https://api.example.com]
+      Changes
+~       servers: + https://uploads.example.com, - https://api.example.com  [breaking: server removed: https://api.example.com]
       Request
         Body  required
           application/octet-stream  any

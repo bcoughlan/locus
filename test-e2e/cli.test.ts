@@ -2,6 +2,9 @@
  * CLI behavior: arguments, file selection, pairing, exit codes, and color.
  * Each test snapshots the whole run (see `transcript`).
  */
+import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { inTmp, openapi, runLocus, transcript } from './helpers.ts';
 
@@ -166,6 +169,41 @@ describe('output', () => {
         const files = { 'old.yml': api(''), 'new.yml': api('description: B, ') };
         await snapshot(files, ['diff', '--no-color', '--source', 'old.yml', 'new.yml']);
         await snapshot(files, ['diff', '--no-color', '--all', '--source', 'old.yml', 'new.yml']);
+    });
+});
+
+describe('--html', () => {
+    // A pet store with changes of every kind: parameters, enums, a new endpoint, a removed one, and a Markdown description.
+    const fixture = join(import.meta.dirname, 'fixtures', 'html');
+    const base = readFileSync(join(fixture, 'base.yml'), 'utf8');
+    const head = readFileSync(join(fixture, 'head.yml'), 'utf8');
+
+    test('writes an HTML page next to the console output', async () => {
+        await inTmp({ 'old.yml': base, 'new.yml': head }, async (dir) => {
+            const result = await runLocus(['diff', '--no-color', '--html', 'out/report.html', '--source', 'old.yml', 'new.yml'], dir);
+            expect(transcript(result, dir)).toMatchSnapshot();
+            const html = await readFile(join(dir, 'out/report.html'), 'utf8');
+            // Text and links from the input documents are escaped.
+            expect(html).not.toContain('<script>alert');
+            expect(html).not.toContain('href="javascript:');
+            await expect(html).toMatchFileSnapshot('__snapshots__/report.html');
+        });
+    });
+
+    test('with --all, the page opens with the unchanged endpoints shown', async () => {
+        await inTmp({ 'old.yml': base, 'new.yml': head }, async (dir) => {
+            await runLocus(['diff', '--all', '--html', 'report.html', '--source', 'old.yml', 'new.yml'], dir);
+            expect(await readFile(join(dir, 'report.html'), 'utf8')).toContain('<body class="show-all">');
+        });
+    });
+
+    // The reason comes from the operating system and differs between platforms, so no snapshot.
+    test('2 when the file cannot be written', async () => {
+        await inTmp({ 'old.yml': base, 'new.yml': head, taken: 'a file, not a folder' }, async (dir) => {
+            const result = await runLocus(['diff', '--no-color', '--html', 'taken/report.html', '--source', 'old.yml', 'new.yml'], dir);
+            expect(result.code).toBe(2);
+            expect(result.stderr).toMatch(/^error: Cannot write the HTML report to taken\/report\.html: /);
+        });
     });
 });
 

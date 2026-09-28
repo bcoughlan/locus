@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pet Store 1.2.0
 
 ~   DELETE /pets/{petId}  deletePet  [breaking]
+      Changes
+~       security › petAuth: scopes: + pets:admin  [breaking: scope added: pets:admin]
       Security
 ~       petAuth  oauth2  scopes: pets:admin, pets:write
 ~         scopes: + pets:admin  [breaking: scope added: pets:admin]

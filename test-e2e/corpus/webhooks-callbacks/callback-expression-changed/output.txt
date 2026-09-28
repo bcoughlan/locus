@@ -8,6 +8,9 @@ Comparing base → head
 
 ~   POST /subscriptions  subscribe  [breaking]
       Subscribe to pet events.
+      Changes
+-       callback onPetEvent › POST {$request.body#/callbackUrl}: removed  [breaking: callback operation removed]
++       callback onPetEvent › POST {$request.header.X-Callback}: added
       Request
         Body  required
           application/json  object

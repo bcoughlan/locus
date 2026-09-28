@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
+~       request body › application/json › microchipId: type: string → integer  [breaking: type changed]
       Request
         Body  required
           application/json  NewPet

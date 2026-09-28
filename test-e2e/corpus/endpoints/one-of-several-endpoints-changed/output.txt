@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [changed]
       List all pets
+      Changes
++       query parameter limit: added
 +     Request
 +       Query parameters
 +         limit  integer  >= 1  <= 100

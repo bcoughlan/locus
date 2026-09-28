@@ -7,6 +7,9 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
+-       response 201: removed  [breaking: response 201 removed]
++       response 202: added
       Request
         Body  required
           application/json  NewPet

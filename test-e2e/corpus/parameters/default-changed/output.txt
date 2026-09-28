@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter limit: default: 20 → 50  [breaking: default changed (client sends)]
       Request
         Query parameters
 ~         limit  integer  >= 1  <= 100  default: 50

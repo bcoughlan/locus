@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets/{petId}/photos  uploadPetPhoto  [breaking]
+      Changes
++       request body › multipart/form-data › caption: added  [breaking: required property added (client sends)]
       Request
         Path parameters
           petId  string  required

@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   POST /subscriptions  subscribe  [breaking]
       Subscribe to pet events.
+      Changes
+-       callback onPetEvent › POST {$request.body#/callbackUrl} › request body › application/json › status: removed  [breaking: property removed]
       Request
         Body  required
           application/json  object

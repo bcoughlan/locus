@@ -5,11 +5,11 @@ sources: "Sources: src/sources/\npatterns to files, git copy" {style.fill: "#e8f
 load: "Load: src/load/\nparse, resolve references on demand" {style.fill: "#e8f1fb"}
 model: "Model: src/model/\nview trees + definition tables" {style.fill: "#e8f1fb"}
 diff: "Diff: src/diff/\nmatch, compare, classify" {style.fill: "#e8f1fb"}
-render: "Render: src/render/\nprint the report" {style.fill: "#e8f1fb"}
+render: "Render: src/render/\nlay out the report, paint it" {style.fill: "#e8f1fb"}
 
 cli -> sources: "patterns, --source or --base"
 sources -> load: "base files, head files"
 load -> model: "parsed files"
 model -> diff: "DocumentModel per file"
 diff -> render: "DiffReport"
-render -> cli: "text, exit code" {style.stroke-dash: 4}
+render -> cli: "console text, HTML page (--html)" {style.stroke-dash: 4}

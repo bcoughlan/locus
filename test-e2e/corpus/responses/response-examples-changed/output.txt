@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   GET /pets/{petId}  getPet  [changed]
+      Changes
+~       response 200 › application/json: example dog: value changed
       Request
         Path parameters
           petId  string  required

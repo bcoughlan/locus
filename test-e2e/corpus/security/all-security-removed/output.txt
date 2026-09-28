@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Orders API 2.3.0
 
 ~   GET /orders/{orderId}  getOrder  [changed]
+      Changes
+-       security: removed
 -     Security
 -       bearerAuth  http bearer
       Request

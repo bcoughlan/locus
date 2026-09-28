@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
++       query parameter species: added  [breaking: required query parameter added (client sends)]
 +     Request
 +       Query parameters
 +         species  string  required  [breaking: required query parameter added (client sends)]

@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Accounts API 1.1.0
 
 ~   GET /me  getCurrentUser  [changed]
+      Changes
+~       security › bearerAuth: bearerFormat: JWT → opaque
       Security
 ~       bearerAuth  http bearer (opaque)
 ~         bearerFormat: JWT → opaque

@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   DELETE /pets/{petId}  deletePet  [breaking]
+      Changes
+-       response 200: removed  [breaking: response 200 removed]
       Request
         Path parameters
           petId  string  required

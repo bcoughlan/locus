@@ -9,6 +9,8 @@ Comparing base → head
 ~   GET /animals/{petId}  getPet  [breaking]
       Get one pet
 ~     path: /pets/{petId} → /animals/{petId}  [breaking: path changed]
+      Changes
+~       path: /pets/{petId} → /animals/{petId}  [breaking: path changed]
       Request
         Path parameters
           petId  integer<int64>  required

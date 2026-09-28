@@ -9,6 +9,8 @@ Comparing base → head
 ~   COPY /pets/{petId}  copyPet  [breaking]
       Copy a pet
       Without a Destination header, the server picks a new ID.
+      Changes
+~       header parameter Destination: optional → required  [breaking: parameter became required (client sends)]
       Request
         Path parameters
           petId  integer<int64>  required

@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
++       request body › application/json › species: added  [breaking: required property added (client sends)]
       Request
         Body  required
           The pet to store.
@@ -18,6 +20,8 @@ Comparing base → head
         201  The pet was created.
 
 ~   PUT /pets/{petId}  replacePet  [breaking]
+      Changes
++       request body › application/json › species: added  [breaking: required property added (client sends)]
       Request
         Path parameters
           petId  string  required

@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter available: allowEmptyValue: true → false  [breaking: empty value no longer allowed]
       Request
         Query parameters
 ~         available  boolean

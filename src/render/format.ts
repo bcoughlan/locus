@@ -1,7 +1,7 @@
 /**
  * Presentation helpers shared by all renderers: type labels, constraint
- * badges, and value formatting. They return plain text, so the console
- * renderer and a future HTML renderer describe facts the same way.
+ * badges, and value formatting. They return plain text, so all renderers
+ * describe facts the same way.
  */
 import { maxSeverity } from '../diff/report.ts';
 import type { AttrChange, ChangeStatus, DiffNode, Severity } from '../diff/report.ts';

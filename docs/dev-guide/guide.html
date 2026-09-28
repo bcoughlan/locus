@@ -75,9 +75,11 @@
   <li>It prints each changed endpoint in full, like API documentation.</li>
   <li>It marks each change: <span class="added">green</span> added, <span class="changed">orange</span> compatible, <span class="breaking">red</span> breaking.</li>
   <li>It exits with 1 on a breaking change, 2 on bad input, else 0.</li>
+  <li>With <code>--html &lt;path&gt;</code>, it also writes the report as one HTML page of API docs, with the changes marked.</li>
 </ul>
 <pre><code>locus diff "specs/*.yml"                          # base: origin/main (git)
-locus diff --source ../old/specs specs            # base: local files</code></pre>
+locus diff --source ../old/specs specs            # base: local files
+locus diff --html report.html "specs/*.yml"       # also write an HTML page</code></pre>
 
 <h2 id="pipeline">2. The pipeline</h2>
 <p>Each stage has one job. Each stage returns plain data to the next.</p>
@@ -88,7 +90,7 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
   <tr><td>Load</td><td><code>src/load/</code></td><td>Parse YAML and JSON. Resolve <code>$ref</code>s on demand.</td></tr>
   <tr><td>Model</td><td><code>src/model/</code></td><td>One view tree per endpoint, plus a table of schema definitions.</td></tr>
   <tr><td>Diff</td><td><code>src/diff/</code></td><td>Match nodes, compare facts, classify each change.</td></tr>
-  <tr><td>Render</td><td><code>src/render/</code></td><td>Print the diff report.</td></tr>
+  <tr><td>Render</td><td><code>src/render/</code></td><td>Turn the diff report into docs with the changes marked. Print them to the console, and write an HTML page for <code>--html</code>.</td></tr>
 </table>
 <ul>
   <li>The diff runs on the same tree that the renderer prints.</li>
@@ -103,6 +105,7 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
   <li><code>compareFiles()</code> loads each side with its own <code>DocumentStore</code>. It skips files without an <code>openapi</code> field (shared schema files).</li>
   <li><code>pairById()</code> pairs documents. Two files named directly pair even with different names.</li>
   <li><code>diffDocument()</code> compares one pair. <code>buildReport()</code> counts the endpoints.</li>
+  <li><code>runDiff()</code> prints the console report. With <code>--html</code>, it also writes <code>renderHtml()</code> to the file and creates the missing folders. A write error is an <code>InputError</code>.</li>
   <li>Input problems throw <code>InputError</code>. <code>main()</code> prints it and returns 2.</li>
 </ul>
 
@@ -229,22 +232,104 @@ locus diff --source ../old/specs specs            # base: local files</code></pr
 </ul>
 
 <h2 id="render">11. Rendering</h2>
-<figure><img data-diagram="sequence-render" alt="Sequence of console rendering"></figure>
+<p>Rendering has two steps. The docs model describes each endpoint as API docs, with the changes marked. A renderer paints the model: the console as indented text, the HTML renderer as a page.</p>
+<figure><img data-diagram="renderers" alt="The docs model and the schema layout, painted by the console and HTML renderers"></figure>
+<table>
+  <tr><th>File</th><th>Job</th></tr>
+  <tr><td><code>docs.ts</code></td><td>The docs model: <code>documentView()</code>, the change digest (<code>digest()</code>).</td></tr>
+  <tr><td><code>layout.ts</code></td><td><code>SchemaLayout</code>: the schema below a parameter, header, or media type, as <code>Line[]</code>.</td></tr>
+  <tr><td><code>format.ts</code></td><td>Text helpers: <code>show()</code>, type labels, badges, details, change text.</td></tr>
+  <tr><td><code>text.ts</code></td><td>Styled text: plain strings with style marks. No escape codes, no markup.</td></tr>
+  <tr><td><code>console.ts</code></td><td>Paints the docs model as indented text with ANSI colors. Adds the summary.</td></tr>
+  <tr><td><code>html.ts</code></td><td>Paints the docs model as one HTML page. Adds the sidebar, pills, and toggle.</td></tr>
+  <tr><td><code>html-text.ts</code></td><td>Escaping, a safe Markdown subset, a word diff, schema lines as HTML.</td></tr>
+  <tr><td><code>html-assets.ts</code></td><td>The CSS and the script of the page.</td></tr>
+</table>
+
+<h3>The docs model</h3>
+<figure><img data-diagram="sequence-render" alt="Sequence of rendering"></figure>
 <ul>
-  <li><code>show(node, definitions)</code> in <code>format.ts</code> merges a node with its definition: facts, changes, and children.</li>
-  <li>Markers: <code>+</code> added, <code>-</code> removed, <code>~</code> changed. Colors repeat the markers.</li>
-  <li>A breaking change carries <code>[breaking: reason]</code>, so the output works without color.</li>
-  <li>A cycle prints <code>(recursive)</code>.</li>
-  <li>After 400 lines in one endpoint, the endpoint shows only the shortest paths to its changes:
+  <li><code>documentView(doc, all)</code> gives a <code>DocumentView</code>: the document facts, and one <code>EndpointView</code> per operation and webhook.</li>
+  <li>An <code>EndpointView</code> holds the header (method, path, <code>operationId</code>, badge), the summary and description, the tags, the digest, and the sections.</li>
+  <li>Each section holds parts:
+    <ul>
+      <li><code>TableView</code>: the parameters of one location, or the headers of a response. One <code>RowView</code> per parameter or header.</li>
+      <li><code>SecurityView</code>: the ways to authorize, each with its schemes and flows.</li>
+      <li><code>BodyView</code> and <code>ResponseView</code>: text, changes, headers, and one <code>RowView</code> per media type.</li>
+      <li><code>CallbackView</code>: the endpoints of a callback, as nested <code>EndpointView</code>s.</li>
+    </ul>
+  </li>
+  <li>A <code>RowView</code> holds a name, a type label, badges, the description, details, changes, and the schema lines below it.</li>
+  <li>Each part has a <code>State</code>: its status, its tone, and the reason when it is added or removed.</li>
+  <li>A <code>TextView</code> holds free text and its change. Renderers show the change in place of the text (console), or next to it (HTML).</li>
+</ul>
+
+<h3>The digest</h3>
+<ul>
+  <li><code>digest()</code> lists every change of a changed endpoint, with its place: <code>response 200 › application/json › owner.name: removed</code>.</li>
+  <li>Schema steps join with dots, and array items with <code>[]</code>. Sections and parameter groups have no step of their own.</li>
+  <li>An added or removed part counts as one entry. An added section or group lists its children instead, with the reason of the section.</li>
+  <li>A referenced definition counts once per endpoint, under the first place that reaches it. The walk follows a reference only when a change is in reach (<code>changeDistances()</code>).</li>
+  <li>Renderers show at most <code>DIGEST_LIMIT</code> (50) entries. The docs below still show every change.</li>
+</ul>
+
+<h3>Schema lines</h3>
+<ul>
+  <li><code>SchemaLayout.schemaBody(node)</code> lays out what a schema node holds below its own row: inline array items and children.</li>
+  <li>A <code>Line</code> has a marker, a depth, a tone, and styled text.</li>
+  <li>Markers: <code>+</code> added, <code>-</code> removed, <code>~</code> changed. The tone repeats the marker: added, changed (compatible), or breaking.</li>
+  <li>A breaking change carries <code>[breaking: reason]</code>, so the lines keep all information without color.</li>
+  <li><code>show(node, definitions)</code> merges a node with its definition: facts, changes, and children.</li>
+  <li>A cycle shows <code>(recursive)</code>.</li>
+  <li><code>startEndpoint()</code> starts the line budget of an endpoint. After 400 lines, the endpoint shows only the shortest paths to its changes:
     <ul>
       <li><code>changeDistances()</code> gives each definition the number of references to its nearest change.</li>
       <li>A reference expands only when its definition is closer to a change than the enclosing definition.</li>
-      <li>A definition that already printed shows <code>(shown above)</code>.</li>
-      <li>Unchanged nodes print as one count line: <code>… 12 unchanged, not shown</code>.</li>
+      <li>A definition that already showed in this endpoint shows <code>(shown above)</code>.</li>
+      <li>Unchanged nodes show as one count line: <code>… 12 unchanged, not shown</code>.</li>
     </ul>
   </li>
-  <li>Why shortest paths: in a spec like Stripe, almost every schema reaches every other schema. So almost every schema has a change inside, and "expand what changed" prints almost everything.</li>
-  <li><code>format.ts</code> holds the text helpers (type labels, badges, change lines). An HTML renderer can reuse them.</li>
+  <li>Why shortest paths: in a spec like Stripe, almost every schema reaches every other schema. So almost every schema has a change inside, and "expand what changed" shows almost everything.</li>
+</ul>
+
+<h3>Styled text</h3>
+<ul>
+  <li><code>Text</code> is a plain string, a <code>Styled</code> part, or an array of both.</li>
+  <li>Styles: the tones (<code>added</code>, <code>changed</code>, <code>breaking</code>), and <code>bold</code>, <code>dim</code>, <code>type</code>, <code>warning</code>.</li>
+  <li>Build it with <code>bold()</code>, <code>dim()</code>, <code>type()</code>, <code>warning()</code>, <code>toned()</code>, and <code>join()</code>.</li>
+  <li><code>flatten(text, plain, styled)</code> turns it into a string. Each renderer gives its own two functions.</li>
+  <li>A plain string is always raw text from the input. So the HTML renderer escapes every plain string.</li>
+</ul>
+
+<h3>The console</h3>
+<ul>
+  <li><code>renderConsole()</code> shows only the changed documents and endpoints, unless <code>--all</code>.</li>
+  <li>Each endpoint: the header, the summary and description, the tags, the digest under "Changes", then the sections. Parameters show one row each, with their text, changes, and schema lines below.</li>
+  <li>Colors: green added, orange compatible, red breaking. <code>--no-color</code> gives the same text without colors.</li>
+  <li>It ends with the endpoint counts and the result.</li>
+</ul>
+
+<h3>The HTML page</h3>
+<ul>
+  <li><code>renderHtml()</code> returns one self-contained page: inline CSS and JavaScript, no external files.</li>
+  <li>The top shows the result and one pill per count: breaking, added, removed, changed. The counts come from <code>DiffReport.endpoints</code>.</li>
+  <li>The sidebar lists the endpoints per document and per first tag. The filter box hides the entries that do not match. The script marks the link of the card at the top of the view.</li>
+  <li>Each endpoint is a card of docs: method and path, summary, tags, the "What changed" digest, the description as Markdown, then the sections.</li>
+  <li>Parameters and headers show as tables. Bodies and responses show as blocks, with their schema lines in a box. A long unchanged schema starts folded.</li>
+  <li>Changed rows and blocks carry a state tag and a colored edge. Inside an added or removed endpoint, the card says it once and the parts carry no tags.</li>
+  <li>A changed description shows the new text, and a folded word diff of the old and new source text.</li>
+  <li>The page lays out all endpoints. Unchanged endpoints and documents carry the class <code>unchanged</code>. The toggle sets <code>show-all</code> on the body, and CSS hides <code>.unchanged</code> without it.</li>
+  <li>The page opens with the changed endpoints only, or with all endpoints when <code>--all</code> is given.</li>
+  <li>The page has light and dark colors (<code>prefers-color-scheme</code>). Below 760 pixels, the sidebar moves above the cards and table rows stack.</li>
+</ul>
+
+<h3>Untrusted text in HTML</h3>
+<ul>
+  <li>Every string from the input documents goes through <code>escape()</code>, <code>markdown()</code>, <code>wordDiff()</code>, or <code>styled()</code> in <code>html-text.ts</code>.</li>
+  <li><code>markdown()</code> escapes first, then adds its own tags. Raw HTML in a description shows as text.</li>
+  <li>Links keep only <code>http</code>, <code>https</code>, <code>mailto</code>, and <code>#</code> URLs. Other links show as their text.</li>
+  <li>The e2e fixture <code>test-e2e/fixtures/html/</code> holds a <code>&lt;script&gt;</code> tag and a <code>javascript:</code> link. The test makes sure that neither reaches the page as markup.</li>
+  <li>The page has no dates or random ids, so the e2e test keeps it as a snapshot: <code>test-e2e/__snapshots__/report.html</code>. Open that file in a browser to see the page.</li>
 </ul>
 
 <h2 id="tests">12. Tests</h2>
@@ -266,7 +351,7 @@ npx vitest run test-e2e/corpus.test.ts -u       # update snapshots, then read th
   <li>Set it in the model: <code>schemaAttrs()</code> for schemas, <code>build.ts</code> for other nodes.</li>
   <li>Classify its changes in <code>classifyAttr()</code> in <code>rules.ts</code>.</li>
   <li>Add a row to <code>docs/breaking-changes.md</code>.</li>
-  <li>Show it: a badge or detail in <code>format.ts</code>.</li>
+  <li>Show it: a badge or detail in <code>format.ts</code>. Both renderers pick it up through the docs model.</li>
   <li>Test: a rule row in <code>rules.test.ts</code>, and a corpus scenario.</li>
 </ol>
 <h3>Debug a wrong verdict</h3>
@@ -278,9 +363,23 @@ npx vitest run test-e2e/corpus.test.ts -u       # update snapshots, then read th
 <h3>Add a renderer</h3>
 <ol>
   <li>Take a <code>DiffReport</code> from <code>compareFiles()</code>.</li>
-  <li>Walk <code>documents</code>, then <code>operations</code>. Use <code>show()</code> for each schema node.</li>
-  <li>Keep a set of open definition ids, to stop at cycles.</li>
-  <li>Reuse <code>typeLabel()</code>, <code>badges()</code>, <code>details()</code>, and <code>describeChange()</code>.</li>
+  <li>Call <code>documentView(doc, all)</code> for each document.</li>
+  <li>Paint each <code>EndpointView</code>: its header, digest, and sections. <code>console.ts</code> and <code>html.ts</code> are examples.</li>
+  <li>Paint the schema lines: turn their styled text into your format with <code>flatten()</code>.</li>
+  <li>If the format has markup, escape each string from the input. For HTML, use the helpers in <code>html-text.ts</code>.</li>
+  <li>Test: an e2e snapshot of the whole output.</li>
+</ol>
+<h3>Show a new part of an endpoint</h3>
+<ol>
+  <li>Add it to the docs model in <code>docs.ts</code>, as a field or a new part kind.</li>
+  <li>Paint it in <code>console.ts</code> and in <code>html.ts</code>.</li>
+  <li>If it can change, give it a crumb in the digest (<code>crumb()</code> in <code>docs.ts</code>).</li>
+</ol>
+<h3>Change the HTML page</h3>
+<ol>
+  <li>Edit <code>src/render/html.ts</code> for the markup, and <code>src/render/html-assets.ts</code> for the CSS and the script.</li>
+  <li>Run <code>npx vitest run test-e2e/cli.test.ts -u</code>, then read the diff of <code>test-e2e/__snapshots__/report.html</code>.</li>
+  <li>Open the snapshot in a browser. Try both toggle states, a click in the sidebar, dark mode, and a narrow window.</li>
 </ol>
 
 <h2 id="glossary">14. Glossary</h2>
@@ -292,6 +391,11 @@ npx vitest run test-e2e/corpus.test.ts -u       # update snapshots, then read th
   <tr><td>Verdict</td><td>Breaking or compatible, with a reason.</td></tr>
   <tr><td>Impact</td><td>The worst change in a subtree.</td></tr>
   <tr><td>Corpus</td><td>The end-to-end scenarios in <code>test-e2e/corpus/</code>.</td></tr>
+  <tr><td>Docs model</td><td>An endpoint as docs with its changes marked, before a renderer paints it.</td></tr>
+  <tr><td>Digest</td><td>The list of all changes of one endpoint, with their places.</td></tr>
+  <tr><td>Schema lines</td><td>The schema below a parameter or body, as indented lines of styled text.</td></tr>
+  <tr><td>Styled text</td><td>Plain strings with style marks, and no escape codes or markup.</td></tr>
+  <tr><td>Tone</td><td>What a line means: added, changed (compatible), or breaking.</td></tr>
 </table>
 </main>
 <script>

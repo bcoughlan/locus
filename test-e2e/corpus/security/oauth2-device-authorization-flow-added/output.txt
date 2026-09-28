@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Streaming API 1.0.0
 
 ~   GET /playlists  listPlaylists  [changed]
+      Changes
++       security › userAuth › deviceAuthorization flow: added
       Security
         userAuth  oauth2  scopes: playlists:read
           authorizationCode  authorization: https://auth.example.com/authorize  token: https://auth.example.com/token

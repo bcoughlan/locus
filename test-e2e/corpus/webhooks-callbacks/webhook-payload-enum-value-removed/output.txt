@@ -10,6 +10,8 @@ Comparing base → head
 
 ~   POST newPet  newPetEvent  [changed]
       A pet was added.
+      Changes
+~       request body › application/json › kind: enum: - updated
       Request
         Body  required
           A pet event.

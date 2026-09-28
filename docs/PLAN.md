@@ -19,7 +19,7 @@ The diff runs as a pipeline of five stages. Each stage has one job and returns p
 2. Loading. The tool parses each file (YAML or JSON), resolves `$ref` values across files, and detects the OpenAPI version.
 3. Model. The tool converts each document into a view tree. A view tree is a version-independent tree of display nodes. A shim converts OpenAPI 3.0 schemas to 3.1 form. For example, `nullable: true` becomes a `"null"` type. OpenAPI 3.1 and 3.2 use the same code path.
 4. Diff. The tool matches endpoints by `operationId`, then by method and path. It compares the two view trees node by node. A rules table classifies each change as breaking or compatible. The result is a diff report, the generic output structure for all renderers.
-5. Render. The console renderer prints the diff report, with or without color. A future HTML renderer can use the same diff report.
+5. Render. A docs model turns each endpoint of the diff report into docs with the changes marked: a change digest, parameter tables, and body and response blocks. Schemas show as lines of styled text. The console renderer prints the docs model, with or without color. The HTML renderer (`--html`) prints it as one page of API docs, with a sidebar, count pills, and a toggle for unchanged endpoints.
 
 The diff runs on the same tree that the renderer prints. Thus each change that the diff finds is visible in the output, and each visible fact takes part in the diff.
 

@@ -1,5 +1,105 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`--html > writes an HTML page next to the console output 1`] = `
+"exit code: 1
+--- stdout
+Comparing old.yml → new.yml
+
+~ new.yml  Pet Store 1.1.0
+~   version: 1.0.0 → 1.1.0
+
+~   GET /pets  listPets  [breaking]
+      List pets
+~     description changed:
+-       Returns the pets in the store, newest first.
++       Returns the pets in the store, oldest first. See [the guide](https://example.com/guide) and \`GET /pets/{id}\`.
++
++       - Sorted by **age**
++       - Links like [this](javascript:alert(1)) stay text. <script>alert(1)</script>
+      Tags: pets
+      Changes
+~       description changed
+~       query parameter limit: maximum: 500 → 100  [breaking: maximum decreased (client sends)]
+~       query parameter status: enum: + adopted, - pending  [breaking: enum values changed (added adopted, removed pending)]
++       header parameter X-Request-Id: added  [breaking: required header parameter added (client sends)]
+-       response 200 › application/json › [].tag: removed  [breaking: property removed]
++       response 200 › application/json › [].age: added
+      Security
+        api_key  apiKey in header "X-API-Key"
+      Request
+        Query parameters
+~         limit  integer  >= 1  <= 100
+            How many pets to return.
+~           maximum: 500 → 100  [breaking: maximum decreased (client sends)]
+~         status  string
+            Allowed values: available, sold, adopted
+~           enum: + adopted, - pending  [breaking: enum values changed (added adopted, removed pending)]
++       Header parameters
++         X-Request-Id  string<uuid>  required  [breaking: required header parameter added (client sends)]
+      Responses
+        200  A page of pets.
+          Headers
+            X-Next-Page  string
+              The cursor of the next page.
+          application/json  array[Pet]
+            id  string  required
+            name  string  required
+              The name, for example <b>Rex</b> & co.
+-           tag  string  [breaking: property removed]
++           age  integer  >= 0
+
+~   GET /pets/{id}  getPet  [breaking]
+      Get a pet
+      Tags: pets
+      Changes
+~       path parameter id: type: string → integer  [breaking: type changed]
+-       response 200 › application/json › tag: removed  [breaking: property removed]
++       response 200 › application/json › age: added
+      Security
+        api_key  apiKey in header "X-API-Key"
+      Request
+        Path parameters
+~         id  integer<int64>  required
+~           type: string → integer  [breaking: type changed]
+      Responses
+        200  The pet.
+          application/json  Pet
+            id  string  required
+            name  string  required
+              The name, for example <b>Rex</b> & co.
+-           tag  string  [breaking: property removed]
++           age  integer  >= 0
+        404  No pet has this ID.
+
+-   GET /stores  listStores  [breaking: endpoint removed]
+-     List stores
+-     Tags: stores
+-     Security
+-       api_key  apiKey in header "X-API-Key"
+-     Responses
+-       200  The stores.
+
++   POST /orders  createOrder  [added]
++     Place an order
++     Tags: orders
++     Security
++       api_key  apiKey in header "X-API-Key"
++     Request
++       Body  required
++         application/json  object
++           petId  string  required
++           note  string  <= 200 characters
++     Responses
++       201  The order is placed.
+
+Endpoints: 2 changed with breaking changes, 0 changed compatibly, 1 added, 1 removed, 1 unchanged.
+Document information: 1 changed.
+Run with --all to show the unchanged endpoints.
+Result: breaking changes found.
+--- stderr
+"
+`;
+
 exports[`exit codes > 0 for compatible changes 1`] = `
 "exit code: 0
 --- stdout
@@ -9,6 +109,8 @@ Comparing old → new
 
 ~   GET /pets  listPets  [changed]
 ~     description: (none) → Lists the pets.
+      Changes
+~       description changed
       Responses
         200  OK
 
@@ -38,6 +140,8 @@ Comparing old → new
 ~ new/api.yml  Test 1
 
 ~   GET /pets  listPets  [breaking]
+      Changes
++       query parameter limit: added  [breaking: required query parameter added (client sends)]
 +     Request
 +       Query parameters
 +         limit  integer  required  [breaking: required query parameter added (client sends)]
@@ -126,6 +230,9 @@ Comparing old → new
 ~ new/api.yml  Test 1
 
 ~   GET /pets  [breaking]
+      Changes
+-       response 200 › application/json › name: removed  [breaking: property removed]
++       response 200 › application/json › nickname: added
       Responses
         200  OK
           application/json  pet
@@ -164,6 +271,8 @@ Comparing old → new
 ~ new/pets.yml  Test 1
 
 ~   GET /pets  listPets  [breaking]
+      Changes
++       query parameter limit: added  [breaking: required query parameter added (client sends)]
 +     Request
 +       Query parameters
 +         limit  integer  required  [breaking: required query parameter added (client sends)]
@@ -190,6 +299,8 @@ Comparing old/specs/*.yml → specs/*.yml
 ~ specs/api.yml  Test 1
 
 ~   GET /pets  listPets  [breaking]
+      Changes
++       query parameter limit: added  [breaking: required query parameter added (client sends)]
 +     Request
 +       Query parameters
 +         limit  integer  required  [breaking: required query parameter added (client sends)]
@@ -210,6 +321,8 @@ Comparing v1.yml → v2.yml
 ~ v2.yml  Test 1
 
 ~   GET /pets  listPets  [breaking]
+      Changes
++       query parameter limit: added  [breaking: required query parameter added (client sends)]
 +     Request
 +       Query parameters
 +         limit  integer  required  [breaking: required query parameter added (client sends)]
@@ -263,6 +376,8 @@ Comparing old.yml → new.yml
 ~ new.yml  Test 1
 
 ~   GET /a  [changed]
+      Changes
++       query parameter x: added
       Request
         Query parameters
           ids  array[string]  explode: false
@@ -284,6 +399,8 @@ Comparing old.yml → new.yml
 
 ~   GET /b  [changed]
 ~     description: (none) → B
+      Changes
+~       description changed
 
 Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 1 unchanged.
 Run with --all to show the unchanged endpoints.
@@ -303,6 +420,8 @@ Comparing old.yml → new.yml
 
 ~   GET /b  [changed]
 ~     description: (none) → B
+      Changes
+~       description changed
 
 Endpoints: 0 changed with breaking changes, 1 changed compatibly, 0 added, 0 removed, 1 unchanged.
 Result: no breaking changes.

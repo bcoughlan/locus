@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Projects API 2.0.0
 
 ~   GET /projects  listProjects  [breaking]
+      Changes
+~       security › oidc: openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration → https://id.example.com/realms/main/.well-known/openid-confi…  [breaking: security scheme changed (openIdConnectUrl)]
       Security
 ~       oidc  openIdConnect https://id.example.com/realms/main/.well-known/openid-configuration  scopes: openid, profile
 ~         openIdConnectUrl changed:  [breaking: security scheme changed (openIdConnectUrl)]

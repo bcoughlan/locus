@@ -10,6 +10,8 @@ Comparing base → head
 
 ~   POST newPet  newPetEvent  [breaking]
       A pet was added.
+      Changes
+~       request body › application/json › kind: enum: + deleted  [breaking: enum value added: deleted (client receives)]
       Request
         Body  required
           A pet event.

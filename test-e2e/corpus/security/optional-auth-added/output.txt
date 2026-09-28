@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /articles  listArticles  [changed]
       Anonymous callers see public articles. Signed-in callers also see articles for subscribers.
+      Changes
++       security: added
 +     Security
 +       none (anonymous access)
 +       bearerAuth  http bearer (JWT)

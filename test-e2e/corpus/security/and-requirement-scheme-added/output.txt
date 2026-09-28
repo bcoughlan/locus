@@ -7,6 +7,9 @@ Comparing base → head
 ~ head/api.yml  Payments API 4.2.0
 
 ~   POST /payments  createPayment  [breaking]
+      Changes
+-       security › bearerAuth: removed  [breaking: security alternative removed]
++       security › bearerAuth + tenantKey: added
       Security
 -       bearerAuth  http bearer  [breaking: security alternative removed]
 +       bearerAuth + tenantKey

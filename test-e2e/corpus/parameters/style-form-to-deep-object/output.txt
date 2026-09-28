@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter filter: style: form → deepObject  [breaking: serialization changed (style)]
       Request
         Query parameters
 ~         filter  object  style: deepObject  explode: true

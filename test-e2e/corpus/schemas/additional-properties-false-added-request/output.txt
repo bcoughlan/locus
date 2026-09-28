@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
+~       request body › application/json: additionalProperties: (none) → false  [breaking: additional properties no longer allowed (client sends)]
       Request
         Body  required
 ~         application/json  NewPet  no additional properties

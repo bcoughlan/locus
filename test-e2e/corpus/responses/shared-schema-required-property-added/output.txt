@@ -7,6 +7,9 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
++       request body › application/json › species: added  [breaking: required property added (client sends)]
++       response 201 › application/json › species: added
       Request
         Body  required
           application/json  Pet

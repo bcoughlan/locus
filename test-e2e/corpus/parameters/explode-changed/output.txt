@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter tags: explode: true → false  [breaking: serialization changed (explode)]
       Request
         Query parameters
 ~         tags  array[string]  explode: false

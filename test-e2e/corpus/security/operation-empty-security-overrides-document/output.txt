@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Inventory API 3.1.0
 
 ~   GET /health  getHealth  [changed]
+      Changes
+-       security: removed
 -     Security
 -       apiKey  apiKey in header "X-API-Key"
       Responses

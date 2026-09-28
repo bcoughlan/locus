@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter status: enum: - pending  [breaking: enum value removed: pending (client sends)]
       Request
         Query parameters
 ~         status  string

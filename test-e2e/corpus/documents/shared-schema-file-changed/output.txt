@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/customers.yml  Customers API 1.0.0
 
 ~   POST /customers  createCustomer  [breaking]
+      Changes
++       request body › application/json › address.countryCode: added  [breaking: required property added (client sends)]
       Request
         Body  required
           application/json  object
@@ -22,6 +24,8 @@ Comparing base → head
 ~ head/stores.yml  Stores API 1.0.0
 
 ~   GET /stores/{storeId}  getStore  [changed]
+      Changes
++       response 200 › application/json › address.countryCode: added
       Request
         Path parameters
           storeId  string  required

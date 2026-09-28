@@ -43,6 +43,7 @@ Put glob patterns in quotes. If the shell expands them, a file that exists only 
 | `--source <pattern>` | Take the base version from local files: a file, a folder, or a glob pattern. You can repeat it. |
 | `--all` | Also print the endpoints that did not change. |
 | `--no-color` | Print without colors. The tool also honors `NO_COLOR` and `FORCE_COLOR`. |
+| `--html <path>` | Also write the report as one HTML page to this file. The tool creates the missing folders. |
 
 A folder argument stands for all `.yml`, `.yaml`, and `.json` files below it. Files without an `openapi` field, such as shared schema files, are not compared on their own. Their content is compared through the `$ref`s that point to them.
 
@@ -61,6 +62,11 @@ The tool pairs base and head documents by their path below the pattern folder. I
 ```text
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter limit: maximum: 500 → 100  [breaking: maximum decreased (client sends)]
+~       query parameter status: enum: + pending
++       header parameter X-Request-Id: added  [breaking: required header parameter added (client sends)]
++       response 200 › application/json › [].age: added
       Security
         api_key  apiKey in header "X-API-Key"
       Request
@@ -84,6 +90,18 @@ The tool pairs base and head documents by their path below the pattern folder. I
 
 The first column marks each line: `+` added, `-` removed, `~` changed. A breaking change carries a `[breaking: reason]` tag, so the output keeps all information without colors. "Client sends" and "client receives" say which direction decided the class.
 
+Each changed endpoint starts with a list of its changes under "Changes". Each entry names the place of the change, for example `response 200 › application/json › owner.name`. The endpoint then shows in full, with each change marked in place. The list shows at most 50 entries.
+
+## HTML report
+
+With `--html <path>`, the tool also writes the report as one HTML page of API docs. The page has no external files.
+
+- Each endpoint shows as docs: its summary, its description (Markdown), and tables of parameters and response headers. The request body and the response bodies show as schema trees, as in the console.
+- Each changed endpoint starts with a "What changed" list. Changed rows, bodies, and responses carry a tag and a colored edge. A changed description shows the new text, and a word diff of the old and new text.
+- A sidebar lists the endpoints by tag. A filter box narrows the list. A click on an endpoint scrolls to it.
+- Pills at the top count the endpoints that are breaking, added, removed, and changed.
+- A toggle shows only the changed endpoints or all endpoints. The page opens with the changed endpoints only, or with all endpoints when you also give `--all`.
+
 ## What counts as breaking
 
 `docs/breaking-changes.md` lists every rule. The short version: a value that the client sends can accept more over time, but not less. A value that the client receives can promise more over time, but not less. For webhooks and callbacks, the API sends the request, so the directions flip.
@@ -105,7 +123,7 @@ const { report } = await compareFiles(base, head, { baseLabel: 'old', headLabel:
 console.log(renderConsole(report, { color: 0, all: false }));
 ```
 
-The report is a tree of plain objects (see `DiffReport` in `src/diff/report.ts`), so other renderers can use it.
+`renderHtml(report, { all: false })` returns the HTML page as a string. The report is a tree of plain objects (see `DiffReport` in `src/diff/report.ts`), so other renderers can use it.
 
 ## Development
 

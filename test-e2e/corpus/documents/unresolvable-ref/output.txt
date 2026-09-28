@@ -11,6 +11,8 @@ Comparing base → head
     warning: base: Unresolved $ref "#/components/schemas/Pett" in base/api.yml
 
 ~   GET /pets  listPets  [changed]
+      Changes
++       query parameter species: added
 +     Request
 +       Query parameters
 +         species  string

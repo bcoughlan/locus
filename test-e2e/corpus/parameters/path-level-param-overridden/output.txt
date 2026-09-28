@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter format: optional → required  [breaking: parameter became required (client sends)]
       Request
         Query parameters
 ~         format  string  required

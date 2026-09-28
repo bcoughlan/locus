@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+~       query parameter redirect: allowReserved: false → true  [breaking: serialization changed (allowReserved)]
       Request
         Query parameters
 ~         redirect  string<uri>  allow reserved

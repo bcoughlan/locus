@@ -8,6 +8,8 @@ Comparing base → head
 
 ~   GET /pets  listPets  [breaking]
       List pets
+      Changes
+-       query parameter species: removed  [breaking: query parameter removed]
       Request
         Query parameters
 -         species  string  [breaking: query parameter removed]

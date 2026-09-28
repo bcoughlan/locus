@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pet Store 1.4.0
 
 ~   GET /pets  listPets  [breaking]
+      Changes
++       security: added
 +     Security
 +       apiKey  apiKey in header "X-API-Key"  [breaking: security added to an endpoint that had none]
       Responses
@@ -16,6 +18,8 @@ Comparing base → head
             tag  string
 
 ~   POST /pets  createPet  [breaking]
+      Changes
++       security: added
 +     Security
 +       apiKey  apiKey in header "X-API-Key"  [breaking: security added to an endpoint that had none]
       Request

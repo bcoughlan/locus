@@ -10,6 +10,8 @@ Comparing base → head
 
 ~   POST newPet  newPetEvent  [breaking]
       A pet was added.
+      Changes
++       response 200 › application/json › receiptId: added  [breaking: required property added (client sends)]
       Request
         Body  required
           A pet event.

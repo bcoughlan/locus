@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [breaking]
+      Changes
+-       request body › application/xml: removed  [breaking: media type application/xml removed]
       Request
         Body  required
           application/json  NewPet

@@ -40,6 +40,9 @@ Comparing origin/main → working tree
 ~ specs/pets.yml  Test 1
 
 ~   GET /pets  listPets  [breaking]
+      Changes
++       query parameter owner: added  [breaking: required query parameter added (client sends)]
++       response 200 › application/json › age: added
       Request
         Query parameters
           limit  integer

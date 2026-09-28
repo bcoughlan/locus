@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets/search  searchPets  [changed]
+      Changes
+~       request body: required → optional
       Request
 ~       Body
 ~         required → optional

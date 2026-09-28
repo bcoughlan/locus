@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Inventory API 4.0.0
 
 ~   GET /items/{sku}  getItem  [changed]
+      Changes
+~       security › apiKey: description changed
       Security
 ~       apiKey  apiKey in header "X-API-Key"
 ~         description changed:

@@ -7,6 +7,8 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   POST /pets  createPet  [changed]
+      Changes
+~       request body › application/json › microchipId: writeOnly: false → true
       Request
         Body  required
           application/json  Pet
@@ -17,6 +19,8 @@ Comparing base → head
         201  The pet was created.
 
 ~   GET /pets/{petId}  getPet  [breaking]
+      Changes
+-       response 200 › application/json › microchipId: removed  [breaking: property became write-only, so it is gone from responses]
       Request
         Path parameters
           petId  string  required

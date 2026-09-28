@@ -1,9 +1,12 @@
 /** `locus diff`: compare OpenAPI documents with a base version and report breaking changes. */
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { compareFiles } from '../compare.ts';
 import type { Comparison } from '../compare.ts';
 import { InputError } from '../errors.ts';
 import { renderConsole } from '../render/console.ts';
 import type { ColorLevel } from '../render/console.ts';
+import { renderHtml } from '../render/html.ts';
 import { expandPatterns } from '../sources/files.ts';
 import type { SpecFile } from '../sources/files.ts';
 import { checkoutRef, keyByPath } from '../sources/git.ts';
@@ -15,6 +18,8 @@ export interface DiffCommandOptions {
     source: string[];
     all: boolean;
     color: ColorLevel;
+    /** Also write the report as an HTML page to this path. */
+    html?: string;
 }
 
 export interface CommandIo {
@@ -33,6 +38,15 @@ export async function runDiff(patterns: string[], options: DiffCommandOptions, i
         throw new InputError(`No OpenAPI documents found in ${patterns.join(' ')}`);
     }
     io.stdout(renderConsole(report, { color: options.color, all: options.all }));
+    if (options.html !== undefined) {
+        const path = resolve(io.cwd, options.html);
+        try {
+            await mkdir(dirname(path), { recursive: true });
+            await writeFile(path, renderHtml(report, { all: options.all }));
+        } catch (err) {
+            throw new InputError(`Cannot write the HTML report to ${options.html}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    }
     return report.breaking ? 1 : 0;
 }
 

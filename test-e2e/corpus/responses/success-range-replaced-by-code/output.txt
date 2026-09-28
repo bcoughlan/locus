@@ -7,6 +7,9 @@ Comparing base → head
 ~ head/api.yml  Pets API 1.0.0
 
 ~   GET /pets  listPets  [breaking]
+      Changes
+-       response 2XX: removed  [breaking: response 2XX removed]
++       response 200: added
       Request
         Query parameters
           limit  integer  >= 1  <= 100
