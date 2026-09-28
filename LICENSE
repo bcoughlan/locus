@@ -1,21 +1,61 @@
-MIT License
+                    VIBE PUBLIC LICENSE
+        (Verified It Basically Executes Public License)
+                   Version 0.1, July 2026
 
-Copyright (c) 2026 Barry Coughlan
+  Copyright (c) 2026 <author>, allegedly.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  Everyone is permitted to copy and distribute verbatim or modified
+  copies of this license document, and changing it is allowed as
+  long as you change the name. You should probably have an LLM
+  change it for you.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+               TERMS, CONDITIONS AND GENERAL AMBIENCE
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  0. PROVENANCE
+
+  This software was entirely vibecoded. No human wrote it, designed
+  it, or reviewed it in any sense that would survive cross
+  examination. The author described a feeling. Software appeared.
+
+  1. FUNCTIONAL STATUS
+
+  It seems to work. The author does not know why. The author has
+  read the source and can confirm only that it parses and that the
+  test suite, which was also vibecoded, passes. Your LLM of choice
+  may know why it works. Ask it. It will answer confidently in
+  either direction.
+
+  2. LIABILITY
+
+  The author accepts no liability of any kind, for any outcome,
+  under any circumstances. The author is further certain that the
+  LLM will not accept liability either, having no legal personality,
+  no assets, and no recollection of the incident. Responsibility for
+  this software was distributed evenly across a large matrix of
+  floating point numbers and is no longer recoverable.
+
+  3. SUPPORT
+
+  The author provides no support. The author is constitutionally
+  incapable of providing support, see Section 1. Issues opened
+  against this repository will be closed and, if the author is
+  feeling generous, pasted into a chat window. Your LLM of choice
+  may provide support. It will certainly provide something.
+
+  4. GRANT OF RIGHTS
+
+  Since the code is a garbled amalgam of everything the model found
+  on the internet, nobody can meaningfully claim it, the author
+  least of all. It is therefore free for everyone, for any purpose,
+  in any form. Use it, copy it, sell it, refactor it, rename the
+  variables, feed it back into a model, print it out and burn it. No
+  attribution is required. If you do work out who deserves the
+  attribution, please tell the author.
+
+  5. WARRANTY
+
+  THE SOFTWARE IS PROVIDED "AS VIBED", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS, IMPLIED OR EMERGENT, INCLUDING BUT NOT LIMITED TO THE
+  WARRANTIES OF IT-WORKED-ON-MY-MACHINE-AT-LEAST-ONCE, FITNESS FOR A
+  PARTICULAR PURPOSE, AND ABSENCE OF THAT ONE FUNCTION NOBODY HAS
+  CALLED YET.
